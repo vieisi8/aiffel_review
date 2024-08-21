@@ -12,8 +12,11 @@
 우분투(ubuntu)?
 
 리눅스 기반으로 만들어진 운영체제를 뜻함
+
 -- OS는 OPERATING SYSTEM의 줄임말!
+
 -- Ubuntu의 로고는 부족끼리 손을 잡고 원으로 그린 모양이며, 정밀도와 신뢰를 뜻함
+
 -- ex) Ubuntu 22.04는 22년도 4월 출시된 버전을 뜻함
 
 ---
@@ -48,29 +51,36 @@ TensorFlow?
 - whoami -> 유저 이름 출력
 - pwd -> 현재 디렉토리 위치 출력
 - ls -> 현재 디랙토리 내의 모든 파일 또는 하위 디렉토리 목록 출력
+
 -- ls -al -> a는 숨김 파일까지 출력 / l은 자세한 정보 출력
 - cd a-> a 디렉토리 이동
+
 -- cd .. -> 상위 디렉토리로 이동
+
 -- cd ~ -> Home으로 이동
 - mkdir a -> a 새디렉토리 생성
 - rm -r a -> a 디렉토리 삭제
 - mv a b -> a를 b로 이동
 - cp a b -> a를 b로 복사
+
 -- -r 옵션 -> 하위 디렉토리까지 함께 복사 가능
 
 ---
 
-패키지? 
+패키지?
+ 
 특정 기능을 하는 작은 프로그램 단위
+
 -- 패키지 > 라이브러리
 
 sudo -> 다른 사용자 권한으로 실행 한다는 의미
 
 apt list --installed
 
-	↓
+		↓
 
 지금까지 설치된 패키지 리스트를 확인하는 명령어
+
 -- grep 옵션을 통해 원하는 패키지만 검색 가능
 
 sudo apt-get update / sudo apt-get upgrade
@@ -81,7 +91,7 @@ sudo apt-get update / sudo apt-get upgrade
 
 sudo apt-get remove a
 
-	↓
+		↓
 
 패키지 a를 삭제
 
@@ -100,7 +110,7 @@ sudo apt-get remove a
 
 which a
 
-   ↓
+		↓
 
 프로그램 a의 설치 경로를 확인하는 명령어
 
@@ -116,25 +126,25 @@ conda create -n a python3.11.2
 
 conda env list
 
-	↓
+		↓
 
 가상환경 리스트 확인
 
 conda activate a
 
-	↓
+		↓
 
 이름이 a인 가상환경 활성화(오류 발생시 conda init 실행)
 
 conda deactivate a
 
-	↓
+		↓
 
 이름이 a인 가상환경 비활성화
 
 conda env remove -n a
 
-	↓
+		↓
 
 이름이 a인 가상환경 삭제
 
