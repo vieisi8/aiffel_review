@@ -208,6 +208,7 @@ IQR?
 
 	- (data-data.min())/(x.max()-x.min())
 	- '''
+	python
 
 	  from sklearn.preprocessing import MinMaxScaler
 	  scaler = MinMaxScaler()
