@@ -138,6 +138,7 @@ keep -> first(중복된 데이터중 먼저 들어온 것을 남김) / last(중�
 '''
 
 def outlier(df,col,z):
+	
 	return df[abs(df[col]-np.mean(df[col]))/np.std(df[col]>z)].index
 
 '''
@@ -208,7 +209,6 @@ IQR?
 
 	- (data-data.min())/(x.max()-x.min())
 	- '''
-	python
 
 	  from sklearn.preprocessing import MinMaxScaler
 	  scaler = MinMaxScaler()
@@ -226,6 +226,7 @@ IQR?
 ---
 
 pandas에서 get_dummies 함수를 통해 손쉽게 원-핫 인코딩 가능
+
 	pd.get_dummies(trade['국가명'])
 
 ---
