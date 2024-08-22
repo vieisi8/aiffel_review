@@ -16,6 +16,7 @@
 ---
 
 -- trade.csv 파일 이용(관세청 무역 통계 )
+
 -- trade = trade.csv 내용
 
 ---
@@ -35,13 +36,16 @@
 ---
 
 trade의 기타사항을 보면 전부 결측치 이므로 컬럼 삭제
+
 	trade=trade.drop('기타사항',axis=1)
+
 		-- axis=0 -> 행을 의미
 		-- axis=1 -> 열을 의미
 
 ---
 
 결측치가 하나라도 존재하는 index를 찾을때
+
 	trade[trade.isnull().any(axis=1)]
 
 ---
