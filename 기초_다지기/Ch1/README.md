@@ -52,13 +52,13 @@ trade의 기타사항을 보면 전부 결측치 이므로 컬럼 삭제
 
 dropna -> 결측치를 삭제하는 메서드
 
-옵션
+	옵션
 
-subset -> 특정 컬럼 선택
+	subset -> 특정 컬럼 선택
 
-how -> any(하나라도 결측치인 경우) / all(전부가 결측치인 경우)
+	how -> any(하나라도 결측치인 경우) / all(전부가 결측치인 경우)
 
-inplace -> True(DataFrame에 바로 적용 O) / False(DataFrame에 바로 적용 X)
+	inplace -> True(DataFrame에 바로 적용 O) / False(DataFrame에 바로 적용 X)
 
 ---
 
