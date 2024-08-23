@@ -20,34 +20,26 @@
 
 	1. 축 그리기
 	'''
+
 	fig = plt.figure() -> 그래프 객체 생성
-	
-	figure 옵션
-
-	figsize(a,b) -> 가로를 a, 세로를 b로 설정
-
 	ax1 = fig.add_subplot(1,1,1) -> add_subplot 메서드를 이용해 축을 그려줌
+
+	'''	
+
+	figure 옵션 - figsize(a,b) -> 가로를 a, 세로를 b로 설정
 
 	add_subplot (2,2,4) -> 2,2,4라는 인자는 최대 2행 2열로 그래프를 생성 할 수 있다는 의미이며, 4는 4번째 위치를 의미 한다.
 
-	'''
-
 	2. 그래프 그리기(bar 그래프 기준)
 
-	'''
-	
 	ax1. bar(x축 data, y축 data)
-
-	'''
 
 	3. 그래프 요소 추가
 
 	'''
 
 	plt.xlabel('x축 data 이름')
-
 	plt.ylabel('y축 data 이름')
-
 	plt.title("타이틀")
 
 	'''
@@ -145,10 +137,6 @@ data가 DataFrame일 경우 plot 메서드 인자 종류
 	- figsize: 그래프의 크기를 지정합니다. (튜플)
 	- title: 그래프의 제목을 지정합니다. (문자열)
 	- sort_columns: 칼럼을 알파벳 순서로 그립니다.
-
----
-
--- tips 데이터 사용
 
 ---
 
@@ -251,9 +239,7 @@ hue 인자
 	'''
 
 	fig = plt.figure()
-
 	ax1 = fig.add_subplot(1,1,1)
-
 	ax1.hist(data, bins=50, density=False) -> bins: 구간을 지정한 만큼 나눔
 
 	'''
