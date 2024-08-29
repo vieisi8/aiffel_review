@@ -647,5 +647,5 @@ mse 값
 
 	'''
 
-![Alt text](/.n.png)
+![Alt text](./n.png)
 
