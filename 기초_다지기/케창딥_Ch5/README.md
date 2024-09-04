@@ -776,4 +776,168 @@ Mnist 입력: 28*28(정수배열) / 매우 적은 수만 유요한 Mnist 샘플
 
 ---
 
+딥러닝에서는 항상 지나치게 파라미터가 많은 모델을 사용
+
+	-> 잠재 매니폴드를 학습하기 위해 필요한 것보다 훨씬 많은 자유도를 가짐
+
+		-> 항상 훈련 손실이 최솟값에 도달하기 훨씬 전에 훈련을 중단
+
+훈련중 일반화 성능이 가장 높은 정확한 최적적합의 지점을 찾는 것
+
+	-> 일반화 성능을 향상시킬 수 있는 가장 효과적인 방법 중 하나
+
+1. 최상의 검증 점수를 내는 에포크 횟수를 찾기 위해 필요보다 오래 훈련 
+2. 그다음 정확히 해당 하는 에포크 횟수 동안 새로운 모델을 다시 훈련
+	- -> 중복 작업이며, 종종 많은 비용이 듬
+
+	에포크가 끝날 때마다 모델을 저장하고 최상의 에포크를 찾은 후 저장된 모델을 재사용 가능
+
+		-> 케라스의 EarlyStopping 콜백(callback)을 사용해 처리
+
+			-> 검증 지표가 더 이상 향샹되지 않으면 바로 훈련을 중지, 그 전까지 최상의 검증 점수를 낸 모델을 남김
+
+---
+
+### 모델 규제하기
+
+---
+
+규제?
+
+	훈련 데이터에 완벽하게 맞추려는 모델의 능력을 적극적으로 방해하는 일련의 모범 사례
+
+		-> 모델의 검증 점수를 향상시키는 것이 목적
+
+모델을 규제한다?
+
+	모델을 간단하고 더 평범하게, 곡선을 부드럽고 더 일반적으로 만드는 경향을 가지기에 규제한다라고 표현
+
+		-> 모델이 훈련 세트에 덜 특화 되고 데이터의 잠재 매니폴드를 조금 더 가깝게 근사함
+
+			-> 일반화 능력을 높일 수 있음
+
+	- 항상 정확한 평가 정차를 따라야 하는 과정!!
+	- 측정이 가능한 경우에만 일반화 달성 가능
+
+---
+
+널리 사용되는 규제 기법
+
+1. 가중치 규제
+
+오캄의 면도날 -> 간단한 모델이 복잡한 모델보다 덜 과대적합 될 가능성이 높음
+
+	간단한 모델 -> 모델의 파라미터 값 분포의 엔트로피가 작은 모델
+
+	모델의 복잡도에 제한을 두어 가중치가 작은 값을 가지도록 강제
+
+		-> 가중치 값의 분포가 균일하게 됨
+
+			-> 가중치 규제
+
+L1, L2 규제
+
+	- L1 -> 가중치의 절대값에 비례하는 비용이 추가(가중치의 L1 norm)
+	- L2 -> 가중치의 제곱에 비례하는 비용이 추가 (가중치의 L2 노름)
+
+		L2 규제 -> 가중치 감쇠라고도 부름
+
+	'''
+
+	from tensorflow.keras import regularizers
+
+	model=keras.Sequential([
+	    layers.Dense(16,
+	                 kernel_regularizer=regularizers.l2(0.002),
+	                 activation="relu"),
+	    layers.Dense(16,
+	                 kernel_regularizer=regularizers.l2(0.002),
+	                 activation="relu"),
+	    layers.Dense(1,activation="sigmoid")
+	])
+
+	model.compile(optimizer="rmsprop",
+	              loss="binary_crossentropy",
+	              metrics=["accuracy"])
+
+	history_l2_reg=model.fit(train_data,
+	                           train_labels,
+	                           epochs=20,
+	                           batch_size=512,
+	                           validation_split=0.4)
+
+	'''
+
+![Alt text](./d.png)
+
+	L2 규제 페널티 적용
+
+		-> 기본 모델보다 훨씬 더 과대적합에 잘 견딤
+
+L2 규제 대신 다음 가중치 규제중 하나 사용 가능
+
+	'''
+
+	from tensorflow.keras import regularizers
+
+	regularizers.l1(0.001)
+	regularizers.l1_l2(l1=0.001,l2=0.001)
+
+	'''
+
+2. 드롭아웃 추가
+
+드롭아웃?
+
+토론토 대학교의 제프리 힌튼과 그의 학생들이 개발
+
+	신경망을 위해 사용되는 규제 기법중 가장 효과적이로 널리 사용되는 방법 중 하나
+
+		- 드롭아웃을 적용 -> 훈련하는 동안 무작위로 층의 특성을 일부 제외(벡터의 일부가 무작위로 0으로 바뀜)
+
+	테스트할 때는 드롭아웃 비율로 출력을 낮추어야 함(ex) 0.5)
+
+	'''
+
+	layer_output *= 0.5
+
+	'''
+
+	출력을 그대로 두기도 함
+
+	'''
+
+	layer_output *= np.random.randint(0,high=2,size=layer_out.shape)
+	layer_output /= 0.5
+
+	'''
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FdSzory%2FbtsonJUubZE%2FKsrTWOWhq3yTXIvUUrmgi1%2Fimg.png)
+
+	층의 출력값에 노이즈를 추가하여 중요하지 않은 우연한 패턴을 깨뜨리는 것
+
+	'''
+
+	model=keras.Sequential([
+	    layers.Dense(16,activation="relu"),
+	    layers.Dropout(0.5),
+	    layers.Dense(16,activation="relu"),
+	    layers.Dropout(0.5),
+	    layers.Dense(1,activation="sigmoid")
+	])
+
+	model.compile(optimizer="rmsprop",
+	              loss="binary_crossentropy",
+	              metrics=["accuracy"])
+
+	history_dropout=model.fit(train_data,
+	                           train_labels,
+	                           epochs=20,
+	                           batch_size=512,
+	                           validation_split=0.4)
+
+	'''
+
+![Alt text](./e.png)
+
 
