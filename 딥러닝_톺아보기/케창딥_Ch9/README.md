@@ -930,4 +930,593 @@ tmi
 
 ---
 
+중간층의 활성화 시각화?
+
+	어떤 입력이 주어졌을 때 모델에 있는 여러 합성곱과 풀링 층이 반환하는 값을 그리는 것
+
+		활성화?
+
+			층의 출력을 의미
+
+		-> 네트워크에 의해 학습된 필터들이 어떻게 입력을 분해하는지 보여 줌
+
+	- 너비, 높이, 깊이 3개의 차원에 대해 특성 맵을 시각화하는 것이 좋음
+	- 각 채널은 비교적 독립적인 특성을 인코딩 => 특성맵의 각 채널 내용을 독립적인 2D 이미지로 그리는것이 괜찮은 방법
+
+이전 모델 불러오기
+
+	'''
+	
+	from tensorflow import keras
+	model=keras.models.load_model("convent_from_scratch_with_augmentation.keras")
+	model.summary()
+
+	'''
+
+	결과:
+
+	'''
+
+	Model: "functional_1"
+	┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+	┃ Layer (type)                         ┃ Output Shape                ┃         Param # ┃
+	┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+	│ input_layer_1 (InputLayer)           │ (None, 180, 180, 3)         │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ rescaling_1 (Rescaling)              │ (None, 180, 180, 3)         │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ conv2d_5 (Conv2D)                    │ (None, 178, 178, 32)        │             896 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ max_pooling2d_4 (MaxPooling2D)       │ (None, 89, 89, 32)          │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ conv2d_6 (Conv2D)                    │ (None, 87, 87, 64)          │          18,496 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ max_pooling2d_5 (MaxPooling2D)       │ (None, 43, 43, 64)          │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ conv2d_7 (Conv2D)                    │ (None, 41, 41, 128)         │          73,856 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ max_pooling2d_6 (MaxPooling2D)       │ (None, 20, 20, 128)         │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ conv2d_8 (Conv2D)                    │ (None, 18, 18, 256)         │         295,168 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ max_pooling2d_7 (MaxPooling2D)       │ (None, 9, 9, 256)           │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ conv2d_9 (Conv2D)                    │ (None, 7, 7, 256)           │         590,080 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ flatten_1 (Flatten)                  │ (None, 12544)               │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ dropout (Dropout)                    │ (None, 12544)               │               0 │
+	├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+	│ dense_1 (Dense)                      │ (None, 1)                   │          12,545 │
+	└──────────────────────────────────────┴─────────────────────────────┴─────────────────┘
+	 Total params: 1,982,084 (7.56 MB)
+	 Trainable params: 991,041 (3.78 MB)
+	 Non-trainable params: 0 (0.00 B)
+	 Optimizer params: 991,043 (3.78 MB)
+
+	'''
+
+다른 고양이 사진 다운후 전처리
+
+	'''
+
+	from tensorflow import keras
+	import numpy as np
+
+	img_path=keras.utils.get_file(
+	    fname="cat.jpg",
+	    origin="https://img-datasets.s3.amazonaws.com/cat.jpg"
+	)
+	
+	def get_img_array(img_path,target_size):
+	  img=keras.utils.load_img(
+	      img_path,target_size=target_size
+	  )
+	  array=keras.utils.img_to_array(img)
+	  array=np.expand_dims(array,axis=0)
+	  return array
+
+	img_tensor=get_img_array(img_path,target_size=(180,180))
+
+	import matplotlib.pyplot as plt
+
+	plt.axis("off")
+	plt.imshow(img_tensor[0].astype("uint8"))
+	plt.show()
+
+	'''
+
+		-> 이미지 배열을 단일 이미지 배치로 변환하기 위해 첫번째 차원 추가
+
+![Alt text](./g.png)
+
+층 활성화 반환하는 모델 생성
+
+	'''
+
+	from tensorflow.keras import layers
+
+	layer_outputs=[]
+	layer_name=[]
+	for layer in model.layers:
+	  if isinstance(layer,(layers.Conv2D,layers.MaxPooling2D)):
+	    layer_outputs.append(layer.output)
+	    layer_name.append(layer.name)
+	activation_model=keras.Model(inputs=model.input,outputs=layer_outputs)
+
+	'''
+
+		-> 입력 이미지가 주입될 때 원본 모델의 활성화 값을 반환
+
+		-> 다중 출력 모델(입력과 층의 활성화마다 한개씩 총 9개의 출력)
+
+층 활성화 계산, 시각화
+
+	'''
+
+	activations=activation_model.predict(img_tensor)
+
+	first_layer_activation=activations[0]
+	print(first_layer_activation.shape)
+	
+	import matplotlib.pyplot as plt
+
+	plt.matshow(first_layer_activation[0,:,:,5],cmap="viridis")
+	plt.show()
+
+	'''
+
+![Alt text](./h.png)
+
+		-> 이 채널은 고양이의 테두리?를 감지하도록 인코딩된 것 같음
+
+네트워크의 모든 층의 활성화에 있는 전체 채널 시각화
+
+	'''
+
+	images_per_row=16
+	for layer_name,layer_activation in zip(layer_name,activations):
+	  n_features=layer_activation.shape[-1]
+	  size=layer_activation.shape[1]
+	  n_cols=n_features//images_per_row
+	  display_grid=np.zeros(((size+1)*n_cols-1,images_per_row*(size+1)-1))
+	  for col in range(n_cols):
+	    for row in range(images_per_row):
+	      channel_index=col*images_per_row+row
+	      channel_image=layer_activation[0,:,:,channel_index].copy()
+	      if channel_image.sum()!=0:
+	        channel_image-=channel_image.mean()
+	        channel_image/=channel_image.std()
+	        channel_image*=64
+	        channel_image+=128
+	      channel_image=np.clip(channel_image,0,255).astype("uint8")
+	      display_grid[
+	          col*(size+1):(col+1)*size+col,
+	          row*(size+1):(row+1)*size+row
+	      ]=channel_image
+	  scale=1./size
+	  plt.figure(figsize=(scale*display_grid.shape[1],scale*display_grid.shape[0]))
+	  plt.title(layer_name)
+	  plt.grid(False)
+	  plt.axis("off")
+	  plt.imshow(display_grid,aspect="auto",cmap="viridis")
+
+	'''
+
+		-> 층 활성화가 계산된 activaitons, 그 해당 층 이름(layer_name)에 대해 루프 순회
+
+![Alt text](./i.png)
+![Alt text](./j.png)
+![Alt text](./k.png)
+![Alt text](./l.png)
+![Alt text](./m.png)
+![Alt text](./n.png)
+![Alt text](./o.png)
+![Alt text](./p.png)
+![Alt text](./q.png)
+
+
+몇가지 주목할 내용
+
+	- 첫번째 층 -> 여러 종류의 에지 감지기를 모아 놓은 것
+		- 이 단계의 활성화 -> 초기 이미지에 있는 거의 모든 정보가 유지
+	- 층이 깊어질수록 점점 추상적으로 변하고, 시각적으로 이해하기 어려워짐
+		- 깊은 층의 표현 -> 이미지의 시각적 콘텐츠에 대한 정보가 줄고, 이미지의 클래스에 관한 정보가 증가
+	- 비어 있는 활성화가 층이 깊어짐에 따라 늘어남
+		- 필터에 인코딩된 패턴이 입력 이미지에 나타나지 않았다는 것을 의미
+
+---
+
+### 컨브넷 필터 시각화
+
+---
+
+	각 필터가 반응하는 시각적 패턴을 그려 보는 것
+
+방법
+
+	- 특정 필터의 응답을 최대화하기 위한 컨브넷 이미지에 경사상승법 적용
+		- 결과적으로 입력 이미지는 선택된 필터가 최대로 응답하는 이미지가 됨
+
+모델 생성
+
+	'''
+
+	model=keras.applications.xception.Xception(
+	    weights="imagenet",
+	    include_top=False)
+
+	'''
+
+		-> ImageNet 데이터셋에서 사전 훈련된 가중치를 로드해 Xception 모델 생성
+
+Xception에 있는 모든 합성곱 층의 이름 출력
+
+	'''
+	
+	for layer in model.layers:
+	  if isinstance(layer,(keras.layers.Conv2D,keras.layers.SeparableConv2D)):
+	    print(layer.name)
+
+	'''
+
+	결과:
+
+	'''
+
+	block1_conv1
+	block1_conv2
+	block2_sepconv1
+	block2_sepconv2
+	conv2d
+	block3_sepconv1
+	block3_sepconv2
+	conv2d_1
+	block4_sepconv1
+	block4_sepconv2
+	conv2d_2
+	block5_sepconv1
+	block5_sepconv2
+	block5_sepconv3
+	block6_sepconv1
+	block6_sepconv2
+	block6_sepconv3
+	block7_sepconv1
+	block7_sepconv2
+	block7_sepconv3
+	block8_sepconv1
+	block8_sepconv2
+	block8_sepconv3
+	block9_sepconv1
+	block9_sepconv2
+	block9_sepconv3
+	block10_sepconv1
+	block10_sepconv2
+	block10_sepconv3
+	block11_sepconv1
+	block11_sepconv2
+	block11_sepconv3
+	block12_sepconv1
+	block12_sepconv2
+	block12_sepconv3
+	block13_sepconv1
+	block13_sepconv2
+	conv2d_3
+	block14_sepconv1
+	block14_sepconv2
+
+	'''
+
+특정 추출 모델 생성
+
+	'''
+
+	layer_name="block3_sepconv1"
+	layer=model.get_layer(name=layer_name)
+	feature_extractor=keras.Model(inputs=model.input,outputs=layer.output)
+
+	'''
+
+		-> model.get_layer() 메서드를 통해 관심 층의 객체를 로드
+
+특성 추출 모델 사용
+
+	'''
+
+	activation=feature_extractor(keras.applications.xception.preprocess_input(img_tensor))
+
+	'''
+
+		-> Xception 모델의 입력은 keras.application.xception.preprocess_input() 메서드로 전처리
+
+경사 상승법 과정 동안 최대화할 '손실 함수' 정의
+
+	'''
+
+	import tensorflow as tf
+
+	def compute_loss(image,filter_index):
+	  activation=feature_extractor(image)
+	  filter_activation=activation[:,2:-2,2:-2,filter_index]
+	  return tf.reduce_mean(filter_activation)
+
+	'''
+
+확률적 경사 상승법을 사용한 손실 최대화
+
+	'''
+
+	@tf.function
+	def gradient_ascent_step(image,filter_index,learning_rate):
+	  with tf.GradientTape() as tape:
+	    tape.watch(image)
+	    loss=compute_loss(image,filter_index)
+	  grads=tape.gradient(loss,image)
+	  grads=tf.math.l2_normalize(grads)
+	  image+=learning_rate*grads
+	  return image
+
+	'''
+
+		-> 아까 정의한 손실 함수 사용
+
+		-> 그레이디언트 텐서에 L2 노름으로 나누어 정규화(그레이티언트 정규화 트릭)
+
+		-> 필터를 더 강하게 활성화 시키는 방향으로 이미지 이동
+
+필터 시각화 생성 함수
+
+	'''
+
+	img_width=200
+	img_height=200
+	def generate_filtes_pattern(filter_index):
+	  iterations=30
+	  learning_rate=10.
+	  image=tf.random.uniform(
+	      minval=0.4,
+	      maxval=0.6,
+	      shape=(1,img_width,img_height,3)
+	  )
+	  for i in range(iterations):
+	    image=gradient_ascent_step(image,filter_index,learning_rate)
+	  return image[0].numpy()
+
+	'''
+
+		-> 손실 함수를 최대화하도록 이미지 텐서 값을 반복적으로 업데이트
+
+출력 가능한 이미지로 변환하는 유틸리티 함수
+
+'''
+
+	def deprocess_image(image):
+	  image-=image.mean()
+	  image/=image.std()
+	  image*=64
+	  image+=128
+	  image=np.clip(image,0,255).astype("uint8")
+	  image=image[25:-25,25:-25,:]
+	  return image
+
+	'''
+
+		-> [0,255] 범위로 이미지 텐서 정규화
+
+층에 있는 모든 필터의 응답 패턴에 대한 그리드 생성
+
+	'''
+
+	all_images=[]
+	for filter_index in range(64):
+	  print(f"{filter_index}번 필터 처리중")
+	  image=deprocess_image(
+	      generate_filtes_pattern(filter_index)
+	  )
+	  all_images.append(image)
+
+	margin=5
+	n=8
+	cropped_width=img_width-25*2
+	cropped_height=img_height-25*2
+	width=n*cropped_width+(n-1)*margin
+	height=n*cropped_height+(n-1)*margin
+	stitched_filters=np.zeros((width,height,3))
+
+	for i in range(n):
+	  for j in range(n):
+	    img=all_images[i*n+j]
+	    stitched_filters[
+	        (cropped_width+margin)*i:(cropped_width+margin)*i+cropped_width,
+	        (cropped_height+margin)*j:(cropped_height+margin)*j+cropped_height,
+	        :,
+	    ]=image
+	keras.utils.save_img(f"filters_for_layer_{layer_name}.png",stitched_filters)
+
+	'''
+
+![Alt text](./r.png)
+
+	- 모델에 있는 첫 번째 층의 필터 -> 간단한 대각선 방향의 에지와 색깔(색깔이 있는 에지)을 인코딩
+	- 조금 더 나중에 있는 층의 필터 -> 에지나 색깔의 조합으로 만들어진 간단한 질감 인코딩
+	- 더 뒤에 있는 층의 필터 -> 깃털, 눈, 나뭇잎 등 자연적인 이미지에서 찾을 수 있는 질감을 닮아감
+
+---
+
+### 클래스 활성화의 히트맵 시각화
+
+클래스 활성화 맵?
+
+	입력 이미지에 대한 클래스 활성화의 히트맵을 만드는 방법
+
+		-> 이미지의 어느 부분이 컨브넷의 최종 분류 결정에 기여하는지 이해하는 데 유용
+
+클래스 활성화 히트맵?
+
+	특정 출력 클래스에 대해 입력 이미지의 모든 위치를 계산한 2D 점수 그리드
+
+Grad-CAM?
+
+	1. 입력 이미지가 주어지면 합성곱 층에 있는 특성 맵의 출력을 추출
+	2. 특성 맵의 모든 채널 출력에 채널에 대한 클래스의 그레이디언트 평균을 곱함
+
+		-> 입력 이미지가 각 채널을 활성화하는 정도에 대한 공간적인 맵을 클래스에 대한 각 채널의 중요도로 가중치를 부여
+ 
+			∴ 입력 이미지가 클래스를 활성화하는 정도에 대한 공간적인 맵을 만드는 것
+
+사전 훈련된 가중치로 Xception 네트워크 로드
+
+	'''
+
+	model=keras.applications.xception.Xception(
+	    weights="imagenet"
+	)
+
+	'''
+
+		-> 최상층 밀집 연결 층을 포함
+
+		-> 이 모델은 299*299 크기의 이미지로 훈련되어 있음
+
+Xception 모델에 맞게 입력 이미지 전처리
+
+	'''
+
+	img_path=keras.utils.get_file(
+	    fname="elephant.jpg",
+	    origin="https://img-datasets.s3.amazonaws.com/elephant.jpg"
+	)
+
+	def get_img_array(img_path,target_size):
+	  img=keras.utils.load_img(img_path,target_size=target_size)
+	  array=keras.utils.img_to_array(img)
+	  array=np.expand_dims(array,axis=0)
+	  array=keras.applications.xception.preprocess_input(array)
+	  return array
+
+	img_array=get_img_array(img_path,target_size=(299,299))
+
+	'''
+
+		-> keras.applications.xception.preprocess_input() 메서드를 통해 전처리
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FcKUS5s%2Fbtspk9k6kVW%2FQ5eUCZjd3Oj1OzxqJZC8rK%2Fimg.png)
+
+
+	-> 코끼리 사진
+
+이미지에 대한 예측 벡터
+
+	'''
+
+	preds=model.predict(img_array)
+	print(keras.applications.xception.decode_predictions(preds,top=3)[0])
+
+	'''
+
+	결과: [('n02504458', 'African_elephant', 0.8699399), ('n01871265', 'tusker', 0.0769561), ('n02504013', 'Indian_elephant', 0.023541728)]
+
+마지막 합성곱 출력을 반환하는 모델 생성
+
+	'''
+
+	last_conv_layer_name = "block14_sepconv2_act"
+	classifier_layer_names = [
+	    "avg_pool",
+	    "predictions",
+	]
+	last_conv_layer=model.get_layer(last_conv_layer_name)
+	last_conv_layer_model=keras.Model(model.inputs,last_conv_layer.output)
+
+	'''
+
+마지막 합성곱 출력 위에 있는 분류기에 적용하기 위한 모델 생성
+
+	'''
+
+	classifier_input=keras.Input(shape=last_conv_layer.output.shape[1:])
+	x=classifier_input
+	for layer_name in classifier_name:
+	  x=model.get_layer(layer_name)(x)
+	classifier_model=keras.Model(classifier_input,x)
+
+	'''
+
+최상위 예측 클래스의 그레이디언트 계산
+
+	'''
+
+	import tensorflow as tf
+
+	with tf.GradientTape() as tape:
+	  last_conv_layer_output=last_conv_layer_model(img_array)
+	  tape.watch(last_conv_layer_output)
+	  preds=classifier_model(last_conv_layer_output)
+	  top_pred_index=tf.argmax(preds[0])
+	  top_class_channel=preds[:,top_pred_index]
+
+	grads=tape.gradient(top_class_channel,last_conv_layer_output)
+
+	'''
+
+그레이디언트 평균, 채널 중요도 가중치 적용
+
+	'''
+
+	pooled_grads=tf.reduce_mean(grads,axis=(0,1,2)).numpy()
+	last_conv_layer_output=last_conv_layer_output.numpy()[0]
+	for i in range(pooled_grads.shape[-1]):
+	  last_conv_layer_output[:,:,i]*=pooled_grads[i]
+	heatmap=np.mean(last_conv_layer_output,axis=-1)
+
+	'''
+
+히트맵 후처리
+
+	'''
+
+	heatmap=np.maximum(heatmap,0)
+	heatmap/=np.max(heatmap)
+	plt.matshow(heatmap)
+	plt.show
+
+	'''
+
+		-> 히트맵을 0~1 사이로 정규화
+
+![Alt text](./s.png)
+
+원본 이미지 위에 히트맵 그리기
+
+	'''
+
+	import matplotlib.cm as cm
+
+	img=keras.utils.load_img(img_path)
+	img=keras.utils.img_to_array(img)
+	heatmap=np.uint8(255*heatmap)
+
+	jet=cm.get_cmap("jet")
+	jet_colors=jet(np.arange(256))[:,:3]
+	jet_heatmap=jet_colors[heatmap]
+
+	jet_heatmap=keras.utils.array_to_img(jet_heatmap)
+	jet_heatmap=jet_heatmap.resize((img.shape[1],img.shape[0]))
+	jet_heatmap=keras.utils.img_to_array(jet_heatmap)
+
+	superimposed_img=jet_heatmap*0.4+img
+	superimposed_img=keras.utils.array_to_img(superimposed_img)
+
+	save_path="elephant_cam.jpg"
+	superimposed_img.save(save_path)
+
+	'''
+
+		-> 히트맵을 0~255 범위로 조정
+
+		-> 'jet'컬러맵을 사용해 히트맵의 색을 바꿈
+
+		-> 히트맵에 40% 투명도를 주고 원본 이미지를 합침
+
+![Alt text](./t.png)
 
