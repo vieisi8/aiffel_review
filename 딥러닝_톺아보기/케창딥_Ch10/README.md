@@ -646,3 +646,41 @@ LSTM 구조의 의사 코드
 	- RNN이 순서에 민감하다는 성질 이용
 	- RNN 2개를 사용해 각 RNN은 입력 시퀀스를 한 방향(시간 순서나 반대 순서)으로 처리한 후 각 표현을 합침
 		- 양방향 RNN은 단방향 RNN이 놓치기 쉬운 패턴을 감지할 수 있음
+	- 놀랍게도 이 절에 있는 RNN 층이 시간의 순서대로 (오래된 타임스텝이 먼저 나오도록) 시퀀스를 처리하는 것은 근거 없는 결정
+	- 순서를 뒤집은 LSTM은 상식 수준의 기준점보다도 성능이 낮음
+	- 텍스트 데이터셋에는 순서를 뒤집어 처리하는 것이 시간 순서대로 처리하는 것과 거의 동일하게 잘 작동
+		- 언어를 이해하는 데 단어의 순서가 중요하지만 결정적이지 않음
+	- 데이터를 바라보는 새로운 시각을 제공하고 다른 방식에서는 놓칠 수 있는 데이터의 특징을 잡아냄
+		- 입력 시퀀스를 양쪽 방향으로 바라보기 때문에, 잠재적으로 풍부한 표현을 얻고 시간 순서대로 처리할 때 놓칠 수 있는 패턴을 감지할 수 있음
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FpDBPJ%2FbtspxcaTZvB%2FAO3PesPs10Dmau5e1eRyK1%2Fimg.png)
+
+	-> 양방향 RNN 동작 방식
+
+사용 방법
+
+	Bidirectional 층을 사용하여 양방향 RNN을 만듦
+
+		-> Bidirectional 클래스는 전달받은 순환 층으로 새로운 두 번째 객체를 만듦(하나는 시간 순서대로 입력 시퀀스를 처리하고, 다른 하나는 반대 순서로 입력 시퀀스를 처리)
+
+	'''
+
+	inputs = keras.Input(shape=(sequence_length, raw_data.shape[-1]))
+	x = layers.Bidirectional(layers.LSTM(16))(inputs)
+	outputs = layers.Dense(1)(x)
+	model = keras.Model(inputs, outputs)
+
+	model.compile(optimizer="rmsprop", loss="mse", metrics=["mae"])
+	history = model.fit(train_dataset,
+	                    epochs=10,
+	                    validation_data=val_dataset)
+
+	'''
+
+	-> 이 모델은 평범한 LSTM 층만큼 성능이 좋지 않음
+
+		-> 동시에 시간 반대 순서로 처리하는 층 때문에 네트워크의 용량이 2배가 되고 훨씬 더 일찍 과대적합이 시작
+
+특징 또 한가지
+
+	- 양방향 RNN은 텍스트 데이터 / 순서가 중요한 (하지만 사용하는 순서는 중요하지 않은) 다른 종류의 데이터에 잘 맞음
