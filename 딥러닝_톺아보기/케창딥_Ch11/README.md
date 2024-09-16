@@ -29,4 +29,24 @@
 
 ---
 
+미분 가능한 함수인 딥러닝 델
+
+	-> 수치 텐서만 처리 가능
+
+텍스트 벡터화?
+
+	텍스트를 수치 텐서로 바꾸는 과정
+
+	1. 텍스트 표준화
+	2. 토큰 단위로 분할 -> 토큰화
+	3. 각 토큰 수치 벡터로 변환
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbPNKsQ%2FbtspsVtRl7O%2FQnDWdKD09VRUhdHmkgN8mK%2Fimg.png)
+
+---
+
+### 텍스트 표준화
+
+---
+
 
