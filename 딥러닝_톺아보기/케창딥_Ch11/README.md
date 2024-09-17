@@ -1142,4 +1142,75 @@ Embedding 층 특징
 
 	결과: 테스트 정확도 87.6%
 
+---
+
+사전 훈련된 단어 임베딩 사용
+
+훈련 데이터가 부족
+
+	작업에 맞는 단어 임베딩을 학습할 수 없음
+
+		-> 미리 계산된 임베딩 공간의 임베딩 벡터를 로드
+
+사전 훈련된 단어 임베딩을 사용하는 이유?
+
+	충분한 데이터가 없어 자신만의 좋은 특성을 학습하지 못하지만 꽤 일반적인 특성이 필요할 때
+
+		-> 학습한 특성을 재사용하는 것이 합리적
+
+단어 임베딩의 계산
+
+	일반적으로 (문장이나 문서에서 함께 등장하는 관어를 관찰하는) 단어 출현 통계를 사용해 계산
+
+케라스의 Embedding 층을 위해 내려받을 수 있는 미리 계산된 단어 임베딩 데이터베이스
+
+	- Word2vec
+		- 성별처럼 구체적인 의미가 있는 속성을 잡아 냄
+	- GloVe(Global Vectors for World Representation)
+		- 단어의 동시 출현(co-occurrence) 통계를 기록한 행렬을 분해하는 기법을 사용
+		- 위키피디아(Wickipidia) 데이터와 커먼 크롤(Commom Crawl) 데이터에서 가져온 수백만 개의 영어 토큰에 대해 임베딩을 미리 계산해 놓았음
+
+- GloVe 파일 다운
+
+	'''
+
+	!wget http://nlp.stanford.edu/data/glove.6B.zip
+	!unzip -q glove.6B.zip
+
+	'''
+
+- GloVe 단어 임베딩 파일 파싱하기
+
+	'''
+
+	import numpy as np
+	path_to_glove_file = "glove.6B.100d.txt"
+
+	embeddings_index = {}
+	with open(path_to_glove_file) as f:
+	    for line in f:
+	        word, coefs = line.split(maxsplit=1)
+	        coefs = np.fromstring(coefs, "f", sep=" ")
+	        embeddings_index[word] = coefs
+
+	print(f"단어 벡터 개수: {len(embeddings_index)}")
+
+	'''
+
+		-> 압축 해제한 파일(.txt 파일)을 파싱하여 단어(즉, 문자열)와 이에 상응하는 벡터 표현을 매핑하는 인덱스를 만듦
+
+이후 스텝
+
+	- GloVe 단어 임베딩 행렬 생성
+	- Constant 초기화를 사용해 Embedding 층에 사전 훈련된 임베딩 로드
+		- trainable=False -> 층을 동결해줘야 함
+	- 모델 구축및 훈련
+
+		지금까지 진행했던 예제와 스텝이 비슷하므로 생략
+
+---
+
+## 트랜스포머 아키텍쳐
+
+---
 
