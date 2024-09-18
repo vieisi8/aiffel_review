@@ -1214,3 +1214,207 @@ Embedding 층 특징
 
 ---
 
+트랜스포머?
+
+	순환 층이나 합성곱 층을 사용하지 않고 '뉴럴 어텐션'이라는 간단한 메커니즘을 사용해 만든 강력한 시퀀스 모델
+
+---
+
+### 셀프 어텐션 이해하기
+
+--- 
+
+쉽게 설명하기
+
+	모델이 어떤 특성에 '조금 더 주의'를 기울이고, 다른 특성에 '조금 덜 주의'를 기울이는것
+
+어텐션 순서
+
+	1. 일련의 특성에 대한 중요도 점수 계산
+	2. 이를 사용해 새로운 입력 표현 형성
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbxrBXH%2FbtspFkmNLQP%2FIHAfbaUxcXX1FtcRRC3o3K%2Fimg.png)
+
+	-> 어떤 특성을 강조하거나 삭제하는 것 이상을 위해 사용 가능
+
+특징
+
+	문맥 인식 특성을 만들 수 있음
+
+이전 방식의 문제점
+
+	단어의 의미가 일반적으로 문맥에 띠리 달라짐
+
+		-> 스마트한 임베딩 공간이라면 주변 단어에 따라 단어의 벡터 표현이 달라져야 함
+
+해결 방법
+
+	셀프 어텐션 사용!
+
+셀프 어텐션?
+
+	시퀀스에 있는 관련된 토큰의 표현을 사용해 한 토큰의 표헌을 조절하는 것
+
+		-> 문맥을 고려한 토큰 표현을 만듦
+
+셀프 어텐션 작동 방식
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbC0MEv%2FbtspH1AhHje%2FhlwTpSfJopnSAmtuhcgopK%2Fimg.png)
+
+	1. "station" 벡터와 문장에 있는 다른 모든 단어 사이의 관련성 점수를 계산 -> 어텐션 점수
+		- 두 단어 벡터 사이의 점곱을 사용해 관계의 갈도 측정
+	2. 관련성 점수로 가중치를 두어 문장에 있는 모든 단어 벡터의 합을 계산
+		- "station"과 밀접하게 관련된 단어는 덧셈에 더 기여 / 관련이 없는 단어는 거의 기여 X
+		- 만들어진 벡터 -> "station"의 새로운 표현 / 주변 문맥을 통합하는 표현
+		- 특히 "train" 벡터 일부가 포함 되기에 사실상 "train station"이라는 것이 명확해짐
+
+사용방법
+
+	MultiHeadAttention층을 제공
+
+	'''
+
+	num_heads = 4
+	embed_dim = 256
+	mha_layer = MultiHeadAttention(num_heads = num_heads, key_dim = embed_dim)
+	outputs = mha_layer(inputs, inputs, inputs)
+
+	'''
+
+---
+
+일반화된 셀프 어텐션: 쿼리-키-값 모델
+
+트랜스포머 아키텍쳐
+
+	원래 기계 번역을 위해 개발됨
+
+		-> 2개의 입력 시퀀스를 다루어야 함
+
+			-> 시퀀스-투-시퀀스 모델
+트랜스포머 입력 스퀀스
+
+	- 소스 시퀀스(ex) "How's the weather today?")
+	- 타킷 시퀀스(ex) “¿Qué tiempo hace hoy?”)
+
+셀프 어텐션 메커니즘
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FsSSV9%2FbtspCm6jQHZ%2FrnJS7O36xCUI4CTb1kyxHK%2Fimg.png)
+
+	- inputs(A)에 있는 모든 토큰이 inputs(B)에 있는 모든 토큰에 얼마나 관련되어 있는지 계산
+	- 이 점수를 사용하여 inputs(C)에 있는 모든 토큰의 가중치 합을 계산
+
+		-> A, B, C가 동일한 입력 시퀀스여야 한다는 조건은 없음
+
+셀프 어텐션 입력값들
+
+	쿼리(query), 키(key), 값(value)
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2Fcm77sg%2FbtspNQZhAXS%2FkRbsQAOGQJwUugHhckxYq1%2Fimg.png)
+
+	- 쿼리에 있는 모든 원소가 키에 있는 모든 원소에 얼마나 관련되어 있는지 계산
+	- 이 점수를 사용하여 값에 있는 모든 원소의 가중치 합을 계산
+
+Query와 Key의 관련도 계산
+
+ex) 사진 DB에서 사진 검색 
+
+	Query -> "dogs on the beach"
+
+	내부적으로 DB에 있는 사진마다 "cat", "dog", "party" 등과 같은 일련의 키워드가 연결되어 있음
+
+		-> Key
+
+	-------------------------------------------------------------------------------------------
+
+	과정
+	
+	1. Query와 Key 비교
+		- Query에 대한 "dog"의 매칭 점수: 1
+		- Query에 대한 "cat"의 매칭 점수: 0
+	2. 매칭(관련성) 강도에 따라 키의 순서를 매김
+	3. 가장 잘 매칭된 상위 N개의 사진을 관련성이 높은 순서대로 반환
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FdNP9UN%2FbtspFMXKWoZ%2F8jYYJDomFr9usN9WUPH2nk%2Fimg.png)
+
+트랜스포머 스타일의 어텐션이 하는 일
+
+	- 찾고 있는 것을 설명하는 참조 시퀀스 -> Query
+	- 정보를 추출할 지식의 본체 -> Value
+	- Query와 쉽게 비교할 수 있는 포맷으로 Value을 설명-> Key
+		- 각 Value마다 Key가 할당되어 있음
+
+	∴ Query와 Key를 매칭하기만 하면 됨
+
+	반환: 값의 가중치 합
+
+특징
+
+	- 실제로 Key와 Value는 같은 시퀀스인 경우가 많음
+		- 타깃의 각 원소(ex) "tiempo")에 대해 소스(ex) "How's the weather today?")에서 이와 관련된 원소를 찾음("tiempo"와 "weather"의 매칭 점수가 높아야 함)
+			-시퀀스 분류라면 자연스럽게 쿼리, 키, 값이 모두 같음
+	- 시퀀스가 자기 자신과 비교하여 각 토큰에 전체 시퀀스의 풍부한 맥락을 부여함
+		- MultiHeadAttention 층에 inputs를 세 번 전달해야 하는 이유
+
+---
+
+### 멀티 헤드 어텐션
+
+---
+
+멀티 헤드 어텐션?
+
+	셀프 어텐션 메커니즘의 변형
+
+멀티 헤드??
+
+	셀프 어텐션의 출력 공간이 독립적으로 학습되는 부분 공간으로 나뉘어진다는 사실을 의미
+
+헤드???
+
+	- Query, Key, Value가 독립적인 3개의 밀집 투영을 통과해 3개의 별개의 벡터가 됨
+	- 각 벡터는 뉴럴 어텐션으로 처리, 출력이 하나의 시퀀스로 연결 됨
+
+	∴ 이런 각 부분 공간을 의미
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2Fcih3cC%2FbtspFMi7tXQ%2FtS8CVvMyuVRW2hQx2kssWk%2Fimg.png)
+
+특징
+
+	- 학습 가능한 밀집 투영 덕분에 이 층이 실제로 무언가 학습 가능
+	- 독립적인 헤드가 존재하면 층이 토큰마다 다양한 특성 그룹을 학습 하는데 도움이 됨
+
+Depthwise convolution과 비교
+
+	작동 방식이 비슷함
+
+---
+
+### 트랜스포머 인코더
+
+---
+
+트랜스포머 아키텍쳐의 구성
+
+	- 트랜스포머 인코더 -> 소스 시퀀스를 처리
+	- 트랜스포머 디코더 -> 소스 시퀀스를 사용해 변환된 버전을 생성
+
+트랜스포머 인코더의 구성
+
+	멀티 헤드 어텐션층, 밀집 투영, 정규화, 잔차 연결을 연결해 구성
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbkWtFn%2FbtspK2y9Yub%2FomMRxreypMTNzNhve2PKlK%2Fimg.png)
+
+
+
+트랜스포머 인코더의 사용?
+
+	텍스트 분류에 사용할 수 있음
+
+		-> 시퀀스를 주입하고 더 유용한 표현으로 바꾸는 것을 학습하는 일반적인 모듈
+
+---
+
+트랜스포머 인코더를 구현해 영화 리뷰 감성 분류 작업 
+
+
