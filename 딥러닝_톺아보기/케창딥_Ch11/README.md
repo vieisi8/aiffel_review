@@ -1419,6 +1419,8 @@ Depthwise convolution과 비교
 
 - Layer 층을 상속하여 구현한 트랜스포머 인코더
 
+---
+
 	'''
 
 	import tensorflow as tf
