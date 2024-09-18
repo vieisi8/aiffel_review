@@ -1417,4 +1417,166 @@ Depthwise convolution과 비교
 
 트랜스포머 인코더를 구현해 영화 리뷰 감성 분류 작업 
 
+- Layer 층을 상속하여 구현한 트랜스포머 인코더
+
+	'''
+
+	import tensorflow as tf
+	from tensorflow import keras
+	from tensorflow.keras import layers
+
+	class TransformerEncoder(layers.Layer):
+	    def __init__(self, embed_dim, dense_dim, num_heads, **kwargs):
+	        super().__init__(**kwargs)
+	        self.embed_dim = embed_dim # 입력 토큰 벡터의 크기
+	        self.dense_dim = dense_dim # 내부 밀집 층의 크기
+	        self.num_heads = num_heads # 어텐션 헤드의 개수
+	        self.attention = layers.MultiHeadAttention(
+	            num_heads=num_heads, key_dim=embed_dim)
+	        self.dense_proj = keras.Sequential(
+	            [layers.Dense(dense_dim, activation="relu"),
+	             layers.Dense(embed_dim),]
+	        )
+	        self.layernorm_1 = layers.LayerNormalization()
+	        self.layernorm_2 = layers.LayerNormalization()
+
+	    def call(self, inputs, mask=None): # call() 메서드에서 연산을 수행한다.
+	        # Enbedding 층에서 생성하는 마스크는 2D이지만 어텐션 층은 3D 또는 4D를 기대하므로 랭크를 늘린다.
+	        if mask is not None:
+	            mask = mask[:, tf.newaxis, :]
+
+        attention_output = self.attention(
+	            inputs, inputs, attention_mask=mask)
+	        proj_input = self.layernorm_1(inputs + attention_output)
+	        proj_output = self.dense_proj(proj_input)
+	        return self.layernorm_2(proj_input + proj_output)
+
+	    def get_config(self): # 모델을 저장할 수 있도록 직렬화를 구현한다.
+	        config = super().get_config()
+	        config.update({
+	            "embed_dim": self.embed_dim,
+	            "num_heads": self.num_heads,
+	            "dense_dim": self.dense_dim,
+	        })
+	        return config
+
+	'''
+
+---
+
+tip
+
+사용자 정의 층 저장하기
+
+	- 사용자 정의 층을 만들 때 get_config 메서드를 구현해야 함
+	- 이를 통해 설정 딕셔너리(config)로부터 층의 객체를 다시 만들 수 있어 모델 저장과 로딩에 사용
+	- 이 메서드는 층을 만들 때 사용한 생성자 매개변수 값을 담은 파이썬 딕셔너리를 반환
+	- 모든 케라스 층은 다음과 같이 직렬화 또는 역직렬화할 수 있음
+
+	'''
+
+	# config 딕셔너리는 가중치 값을 답고 있지 않기 때문에 층의 모든 가중치는 처음 상태로 초기화된다.
+	config = layer.get_config()
+	new_layer = layer.__class__.from_config(config)
+
+	'''
+
+ex)
+
+	'''
+
+	layer = PositionalEmbedding(sequence_length, input_dim, output_dim)
+	config = layer.get_config()
+	new_layer = PositionalEmbedding.from_config(config)
+
+	'''
+
+저장 및 로드
+
+	- 사용자 정의 층이 포함되어 있는 모델을 저장할 때 저장 파일에 이런 설정 딕셔너리가 포함
+	- 파일에서 모델을 로드할 때 설정 딕셔너리를 이해할 수 있도록 다음과 같이 사용자 정의 클래스를 알려 주어야 함
+
+	'''
+
+	model = keras.models.load_model(
+		filename, custom_objects = {"PositionalEmbedding": PositionalEmbedding})
+
+	'''
+
+---
+
+사용할 정규화 층
+
+	BatchNormalization 층 X ->  시퀀스 데이터에는 잘 맞지 않기 때문
+
+	->  LayerNormalization 층을 사용(배치에 있는 각 시퀀스를 독립적으로 정규화)
+
+코드로 정의
+
+	'''
+
+	def layer_normalization(batch_normalization): # 입력 크기: (batch_size, sequence_length, embedding_dim)
+		# 마지막 축(축 인덱스-1)을 따라 평균과 분산을 계산한다.
+		mean = np.mean(batch_of_sequences, keepdims=True, axis=1)
+	    variance = np.var(batch_of_sequences, keepdims=True, axis=-1)
+	    return (batch_of_sequences - mean) / variance
+
+	'''
+
+		-> 특성의 분산에 대한 정확한 통계 값을 구하기 위해 각 시퀀스 안에서 데이터를 개별적으로 구하기 때문에 시퀀스 데이터에 더 적절
+
+- 트랜스포머 인코더를 사용하여 텍스트 분류하기
+
+	'''
+
+	vocab_size = 20000
+	embed_dim = 256
+	num_heads = 2
+	dense_dim = 32
+
+	inputs = keras.Input(shape=(None,), dtype="int64")
+	x = layers.Embedding(vocab_size, embed_dim)(inputs)
+	x = TransformerEncoder(embed_dim, dense_dim, num_heads)(x)
+	x = layers.GlobalMaxPooling1D()(x) # TransformerEncoder는 전체 시퀀스를 반환하기 때문에 분류 작업을 위해 전역 풀링 층으로 각 시퀀스를 하나의 벡터로 만든다.
+	x = layers.Dropout(0.5)(x)
+	outputs = layers.Dense(1, activation="sigmoid")(x)
+	model = keras.Model(inputs, outputs)
+	model.compile(optimizer="rmsprop",
+	              loss="binary_crossentropy",
+	              metrics=["accuracy"])
+	callbacks = [
+	    keras.callbacks.ModelCheckpoint("transformer_encoder.keras",
+	                                    save_best_only=True)
+	]
+	model.fit(int_train_ds, validation_data=int_val_ds, epochs=20, callbacks=callbacks)
+	model = keras.models.load_model(
+	    "transformer_encoder.keras",
+	    custom_objects={"TransformerEncoder": TransformerEncoder})
+	print(f"테스트 정확도: {model.evaluate(int_test_ds)[1]:.3f}")
+
+	'''
+
+	결과: 87.5% 테스트 정확도
+
+위에서 재현한 모델의 문제점
+
+	- 트랜스포머는 원래 기계 번역을 위해 개발된 시퀀스 처리 아키텍처
+		- 트랜스포머 인코더는 시퀀스 모델이 전혀 아님
+		- 시퀀스 토큰을 독립적으로 처리하는 밀집 층과 토큰을 집합으로 바라보는 어텐션 층으로 구성
+		- 시퀀스에 있는 토큰 순서를 바꾸어도 정확히 동일한 어텐션 점수와 (문맥이 고려된) 표현을 얻을 것
+	- 셀프 어텐션은 시퀀스 원소 쌍 사이의 관계에 초점을 맞춘 집합 처리 메커니즘
+		- 원소가 시퀀스 처음에 등장하는지, 마지막에 등장하는지, 중간에 등장하는지 알지 못함
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2Fqk1BR%2FbtspOy5bWcl%2FFOMbQSbn1kX8UkRK368pV1%2Fimg.png)
+
+해결책
+
+	기술적으로 순서에 구애받지 않지만 모델이 처리하는 표현에 순서 정보를 수동으로 주입하는 하이브리드 방식을 사용!!
+
+		-> 위치 인코딩(positional encoding)
+
+---
+
+위치 인코딩을 사용해 위치 정보 주입
+
 
