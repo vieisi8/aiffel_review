@@ -321,6 +321,8 @@ TextVectorization 층을 사용하는 방법이 두 가지
 
 1. tf.data 파이프라인
 
+---
+
 	'''
 
 	int sequence_dataset = string_dataset.map( # string_dataset은 문자열 탠서를 반환하는 데이터셋
@@ -334,6 +336,8 @@ TextVectorization 층을 사용하는 방법이 두 가지
 	- 모델을 GPU나 TPU에서 훈련한다면 최상의 성능을 얻을 수 있음
 
 2. 모델의 일부
+
+---
 
 	'''
 
@@ -422,6 +426,8 @@ train/unsup 디렉터리 삭제
 
 3. 검증 세트 생성
 
+---
+
 	훈련 텍스트 파일에서 20%를 새로운 디렉터리 aclimdb/val로 덜어 내어 검증 세트 생성
 
 	'''
@@ -449,6 +455,8 @@ train/unsup 디렉터리 삭제
 
 4. Dataset 객체 생성
 
+---
+
 	image_dataset_from_directory() 메서드를 사용해 Dataset 객체 생성
 
 	'''
@@ -473,6 +481,8 @@ train/unsup 디렉터리 삭제
 			->  텐서플로의 tf.string 텐서인 입력과 "0" 또는 "1"로 인코딩된 int32텐서인 타깃을 반환
 
 5. 첫 번째 배치의 크기와 dtype 출력
+
+---
 
 	'''
 
@@ -513,6 +523,8 @@ train/unsup 디렉터리 삭제
 
 - TextVectorization 층으로 데이터 전처리
 
+---
+
 	'''
 
 	text_vectorization = TextVectorization(
@@ -551,6 +563,8 @@ train/unsup 디렉터리 삭제
 
 - 이진 유니그램 데이터셋의 출력 확인
 
+---
+
 	'''
 
 	for inputs, targets in binary_1gram_train_ds:
@@ -567,6 +581,8 @@ train/unsup 디렉터리 삭제
 ![Alt text](./e.png)
 
 -  모든 예제에서 사용할 모델 생성 함수 정의
+
+---
 
 	'''
 
@@ -587,6 +603,8 @@ train/unsup 디렉터리 삭제
 	'''
 
 - 이진 유니그램 모델 훈련, 테스트
+
+---
 
 	'''
 
@@ -637,6 +655,8 @@ N-그램 반환 하는 방법
 
 - 바이그램을 반환하는 TextVectorization 층 생성
 
+---
+
 	'''
 
 	text_vectorization = TextVectorization(
@@ -648,6 +668,8 @@ N-그램 반환 하는 방법
 	'''
 
 - 이진 바이그램 모델 훈련, 테스트
+
+---
 
 	'''
 
@@ -696,6 +718,8 @@ N-그램 반환 하는 방법
 	텍스트 분류 작업 -> 한 샘플에 단어가 얼마나 많이 등장하는지가 중요
 
 - 토큰 카운트를 반환하는 TextVectorization 층 생성
+
+---
 
 	'''
 
@@ -758,6 +782,8 @@ TF-IDF 구현
 
 - TF-IDF 가중치가 적용된 출력을 반환하는 TextVectorization 층 생성
 
+---
+
 	'''
 
 	text_vectorization = TextVectorization(
@@ -769,6 +795,8 @@ TF-IDF 구현
 	'''
 
 - TF-IDF 바이그램 모델 훈련, 테스트
+
+---
 
 	'''
 
@@ -868,6 +896,8 @@ TF-IDF 구현
 
 - 정수 시퀀스 데이터셋 준비
 
+--
+
 	'''
 
 	from tensorflow.keras import layers
@@ -898,6 +928,8 @@ TF-IDF 구현
 
 - 원-핫 인코딩된 벡터 시퀀스로 시퀀스 모델 생성
 
+---
+
 	'''
 
 	import tensorflow as tf
@@ -923,6 +955,8 @@ TF-IDF 구현
 	'''
 
 - 첫 번째 시퀀스 모델 훈련
+
+---
 
 	'''
 
@@ -1023,6 +1057,8 @@ Embedding 층으로 단어 임베딩 학습
 
 - Embedding 층 만들기
 
+--
+
 	'''
 
 	# Embedding 층은 적어도 2개의 매개변수가 필요하다. 가능한 토큰의 개수와 임배딩 차원(여기에서는 256)이다.
@@ -1046,6 +1082,8 @@ Embedding 층 특징
 	- 훈련 종료 -> 임베딩 공간은 특정 문제에 전문화된 여러 가지 구조를 가지게 됨
 
 - 밑바닥부터 훈련하는 Embedding 층을 사용한 모델
+
+---
 
 	'''
 
@@ -1116,6 +1154,8 @@ Embedding 층 특징
 
 - 마스킹을 활용화한 Embedding 층 사용
 
+---
+
 	'''
 
 	inputs = keras.Input(shape=(None,), dtype="int64")
@@ -1172,6 +1212,8 @@ Embedding 층 특징
 
 - GloVe 파일 다운
 
+---
+
 	'''
 
 	!wget http://nlp.stanford.edu/data/glove.6B.zip
@@ -1180,6 +1222,8 @@ Embedding 층 특징
 	'''
 
 - GloVe 단어 임베딩 파일 파싱하기
+
+---
 
 	'''
 
@@ -1527,8 +1571,9 @@ ex)
 
 		-> 특성의 분산에 대한 정확한 통계 값을 구하기 위해 각 시퀀스 안에서 데이터를 개별적으로 구하기 때문에 시퀀스 데이터에 더 적절
 
-* 트랜스포머 인코더를 사용하여 텍스트 분류하기
+- 트랜스포머 인코더를 사용하여 텍스트 분류하기
 
+---
 
 	'''
 
