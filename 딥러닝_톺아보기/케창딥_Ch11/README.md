@@ -1627,4 +1627,710 @@ ex)
 
 위치 인코딩을 사용해 위치 정보 주입
 
+위치 인코딩의 가장 간단한 방법
 
+	단어 위치를 임베딩 벡터에 연결하는 것!
+
+		-> 위치가 매우 큰 정수가 될 수 있어 임베딩 벡터 값의 범위를 넘어섬
+
+위치 인코딩 방법!
+
+	1. 단어 인덱스의 임베딩을 학습하는 것처럼 위치 임베딩 벡터를 학습
+	2. 위치 임베딩을 이에 해당하는 단어 임베딩에 추가해 위치를 고려한 단어 임베딩 생성
+
+		-> '위치 임베딩'이라고 부름
+
+---
+- 서브클래싱으로 위치 임베딩 구현하기
+---
+
+	'''
+
+	class PositionalEmbedding(layers.Layer):
+	    # 위치 임베딩의 단점은 시퀀스 길이를 미리 알아야 한다는 것이다.
+	    def __init__(self, sequence_length, input_dim, output_dim, **kwargs):
+	        super().__init__(**kwargs)
+	        # 토큰 인덱스를 위한 Embedding 층을 준비한다.
+	        self.token_embeddings = layers.Embedding(
+	            input_dim=input_dim, output_dim=output_dim)
+	        self.position_embeddings = layers.Embedding(
+	            # 토큰 위치를 위한 Embedding 층을 준비한다.
+	            input_dim=sequence_length, output_dim=output_dim)
+	        self.sequence_length = sequence_length
+	        self.input_dim = input_dim
+	        self.output_dim = output_dim
+
+	    def call(self, inputs):
+	        length = tf.shape(inputs)[-1]
+	        positions = tf.range(start=0, limit=length, delta=1)
+	        embedded_tokens = self.token_embeddings(inputs)
+	        embedded_positions = self.position_embeddings(positions)
+
+	        # 두 임베딩 벡터를 더한다.
+	        return embedded_tokens + embedded_positions
+
+	    # Embedding 층처럼 이 층은 입력에 있는 0 패딩을 무시할 수 있도록 마스킹을 생성해야 한다.
+	    # compute_mask 메서드는 프레임워크에 의해 자동으로 호출되고 만들어진 마스킹은 다음 층으로 전달된다.
+	    def compute_mask(self, inputs, mask=None):
+	        return tf.math.not_equal(inputs, 0)
+
+	    # 모델 저장을 위한 직렬화를 구한다.
+	    def get_config(self):
+	        config = super().get_config()
+	        config.update({
+	            "output_dim": self.output_dim,
+	            "sequence_length": self.sequence_length,
+	            "input_dim": self.input_dim,
+	        })
+	        return config
+
+	'''
+
+		-> 일반적인 Embedding 층처럼 PositionEmbedding 층을 사용할 수 있음
+
+---
+
+텍스트 분류 트렌스포머
+
+---
+트랜스포머 인코더와 위치 임베딩 합치기
+---
+
+	'''
+
+	vocab_size = 20000
+	sequence_length = 600
+	embed_dim = 256
+	num_heads = 2
+	dense_dim = 32
+
+	inputs = keras.Input(shape=(None,), dtype="int64")
+	x = PositionalEmbedding(sequence_length, vocab_size, embed_dim)(inputs) # 여기가 위치 임베딩
+	x = TransformerEncoder(embed_dim, dense_dim, num_heads)(x)
+	x = layers.GlobalMaxPooling1D()(x)
+	x = layers.Dropout(0.5)(x)
+	outputs = layers.Dense(1, activation="sigmoid")(x)
+	model = keras.Model(inputs, outputs)
+	model.compile(optimizer="rmsprop",
+	              loss="binary_crossentropy",
+	              metrics=["accuracy"])
+	model.summary()
+
+	callbacks = [
+	    keras.callbacks.ModelCheckpoint("full_transformer_encoder.keras",
+	                                    save_best_only=True)
+	]
+	model.fit(int_train_ds, validation_data=int_val_ds, epochs=20, callbacks=callbacks)
+	model = keras.models.load_model(
+	    "full_transformer_encoder.keras",
+	    custom_objects={"TransformerEncoder": TransformerEncoder,
+	                    "PositionalEmbedding": PositionalEmbedding})
+	print(f"테스트 정확도: {model.evaluate(int_test_ds)[1]:.3f}")
+
+	'''
+
+	결과: 테스트 정확도 88.3% -> 텍스트 분류에 단어 순서가 중요하다는 것을 보여 줌
+
+---
+
+### BoW 모델 대신 언제 시퀀스 모델을 사용하나요?
+
+---
+
+BoW 방법 VS 트랜스포머 기반 시퀀스 모델
+
+	- 바이그램 위에 몇 개의 Dense 층을 쌓은 모델이 많은 경우에 완전히 유효하고 타당한 접근 방법
+	- 새로운 텍스트 분류 작업을 시도할 때 훈련 데이터에 있는 샘플 개수와 샘플에 있는 평균 단어 개수 사이의 비율에 주의를 기울여야 함
+		- 이 비율이 1,500보다 작으면 BoW 모델의 성능이 더 나을 것(보너스로 훨씬 빠르게 훈련되고 많이 반복할 수 있음)
+		- 이 비율이 1,500보다 크면 시퀀스 모델을 사용
+	- 시퀀스 모델은 훈련 데이터가 많고 비교적 샘플의 길이가 짧은 경우에 잘 동작
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FuZVsd%2FbtspTKdbHuR%2F66S7RC6NcTRvsQwygXj0ck%2Fimg.png)
+
+	-> 이 법칙은 과학적 법칙이 아니라 경험 법칙이므로 대부분의 경우에 맞을 것이라고 예상하지만 모든 경우에 적용되지는 않을 것
+
+---
+
+## 텍스트 분류를 넘어: 시퀀스-투-시퀀스 학습
+
+---
+
+시퀀스-투-시퀀스 모델?
+
+	시퀀스(종종 문장이나 문단)를 받아 이를 다른 시퀀스로 바꿈
+
+종류
+
+	- 기계 번역(machine translation): 소스 언어에 있는 문단을 타깃 언어의 문단으로 바꿈
+	- 텍스트 요약(text summarization): 긴 문서를 대부분 중요한 정보를 유지한 짧은 버전으로 바꿈
+	- 질문 답변(question answering): 입력 질문에 대한 답변을 생성
+	- 챗봇(chatbot): 입력된 대화나 또는 대화 이력에서 다음 응답을 생성
+	- 텍스트 생성: 시작 텍스트를 사용하여 하나의 문단을 완성
+
+시퀀스-투-스퀀스 모델의 일반적인 구조
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbfRezm%2FbtspMJsUKEX%2F6ws2u2ztazpUPXVFTNKc20%2Fimg.png)
+
+훈련 단계 순서
+	- 인코더(encoder) 모델이 소스 시퀀스를 중간 표현으로 바꿈
+	- 디코더(decoder)는 (0에서 i-1까지의) 이전 토큰과 인코딩된 소스 시퀀스를 보고 타깃 시퀀스에 있는 다음 토큰 i를 예측하도록 훈련
+
+추론 단계 순서
+
+	1. 인코더가 소스 시퀀스를 인코딩
+	2. 디코더가 인코딩된 소스 시퀀스와 ("[start]" 문자열과 같은) 초기 "시드(seed)" 토큰을 사용하여 시퀀스의 첫 번째 토큰을 예측
+	3. 지금까지 예측된 시퀀스를 디코더에 다시 주입하고 다음 토큰을 생성하는 식으로 ("[end]" 문자열과 같은) 종료 토큰이 생성될 때까지 반복
+
+		- 추론에서는 타깃 시퀀스를 사용하지 못하므로 처음부터 예측해야 함
+		- 한 번에 하나의 토큰을 생성
+
+---
+
+### 기계 번역 예제
+
+---
+
+시퀀스-투-시퀀스(트랜스포머)을 기계 번역 작업에 적용
+
+---
+1. 영어-스페인어 번역 데이터셋 다운 후 전처리
+---
+
+	1. [https://www.manythings.org/anki/](https://www.manythings.org/anki/)에 있는 영어-스페인어 번역 데이터셋을 사용
+
+	'''
+
+	!wget http://storage.googleapis.com/download.tensorflow.org/data/spa-eng.zip
+	!unzip -q spa-eng.zip
+
+	'''
+
+	2. 파싱
+
+	'''
+
+	text_file = "spa-eng/spa.txt"
+	with open(text_file) as f:
+	    lines = f.read().split("\n")[:-1]
+	text_pairs = []
+	for line in lines: # 한 라인씩 처리한다.
+	    english, spanish = line.split("\t") # 각 라인은 구절과 이에 해당하는 스페인 번역을 포함하여 텝으로 구성되어 있다.
+	    spanish = "[start] " + spanish + " [end]" # 형식에 맞추기 위해 스페인 문장 처음에 [start]를 추가하고 끝에 [end]를 추가한다.
+	    text_pairs.append((english, spanish))
+
+	'''
+
+![Alt text](./j.png)
+
+	3. 셔플후 훈련, 검증, 테스트 세트로 나눔
+
+	'''
+
+	import random
+	random.shuffle(text_pairs)
+	num_val_samples = int(0.15 * len(text_pairs))
+	num_train_samples = len(text_pairs) - 2 * num_val_samples
+	train_pairs = text_pairs[:num_train_samples]
+	val_pairs = text_pairs[num_train_samples:num_train_samples + num_val_samples]
+	test_pairs = text_pairs[num_train_samples + num_val_samples:]
+
+	'''
+
+	4. (영어, 스페인어)2개의 TextVectorization 층 준비
+
+
+	문자열을 전처리하는 방식을 커스터마이징해야 함
+
+		- 앞에서 추가한 "[start]"와 "[end]" 토큰을 유지해야 함. 기본적으로 [와 ] 문자가 삭제되지만 여기에서는 "start" 단어와 "[start]"를 별개로 취급하기 위해 두 문자를 유지
+		- 구두점은 언어마다다름! 스페인어 TextVectorization 층에서 구두점 문자를 삭제하려면 ¿ 문자도 삭제
+
+	- 영어와 스페인어 텍스트 쌍을 벡터화하기
+
+	'''
+
+	import tensorflow as tf
+	from tensorflow.keras import layers
+	import string
+	import re
+
+	# 스페인어 TextVectorization 위해 사용자 정의 문자열 표준화 함수를 정의한다.
+	# [와 ]문자는 유지하고 (strings.punctuation에 있는 문자를 포함하여) ¿ 문자를 삭제한다
+	strip_chars = string.punctuation + "¿"
+	strip_chars = strip_chars.replace("[", "")
+	strip_chars = strip_chars.replace("]", "")
+
+	def custom_standardization(input_string):
+	    lowercase = tf.strings.lower(input_string)
+	    return tf.strings.regex_replace(
+	        lowercase, f"[{re.escape(strip_chars)}]", "")
+
+	# 간단한 예를 위해 각 언어에서 가장 많이 등장하는 1만 5,000개의 단어만 사용하고 문장의 길이는 20개의 단어로 제한한다.
+	vocab_size = 15000
+	sequence_length = 20
+
+	source_vectorization = layers.TextVectorization( # 영어 층
+	    max_tokens=vocab_size,
+	    output_mode="int",
+	    output_sequence_length=sequence_length,
+	)
+	target_vectorization = layers.TextVectorization( # 스페인어 층
+	    max_tokens=vocab_size,
+	    output_mode="int",
+                                                 
+	    # 훈련하는 동안 한 스탭 앞서 문장이 필요하기 때문에 토큰 하나가 추가된 스페인어 문장을 생성한다.                                                 
+	    output_sequence_length=sequence_length + 1,
+	    standardize=custom_standardization,
+	)
+	train_english_texts = [pair[0] for pair in train_pairs]
+	train_spanish_texts = [pair[1] for pair in train_pairs]
+
+	# 각 언어의 어휘 사전을 만든다.
+	source_vectorization.adapt(train_english_texts)
+	target_vectorization.adapt(train_spanish_texts)
+
+	'''
+
+		- 마지막으로 데이터를 tf.data 파이프라인으로 변환할 수 있음
+		- 이 데이터셋은 (inputs, target)의 튜플을 반환
+		- inputs는 "encoder_inputs(영어 문장)"와 "decoder_inputs(스페인어 문장)"키 2개를 가진 딕셔너리
+		- targets은 한 스텝 안의 스페인어 문장
+
+	5. 번역 작업을 위한 데이터셋 준비하기
+
+	'''
+
+	batch_size = 64
+
+	def format_dataset(eng, spa):
+	    eng = source_vectorization(eng)
+	    spa = target_vectorization(spa)
+	    return ({
+	        "english": eng,
+	        "spanish": spa[:, :-1], # 입력 스페인어 문장은 마지막 토큰을 포함하지 않기 때문에 입력과 타깃 길이가 같다.
+	    }, spa[:, 1:]) # 타깃 스페인어 문장은 한 스텝 앞의 문장이다. 길이는 입력과 같다(20개의 단어).
+
+	def make_dataset(pairs):
+	    eng_texts, spa_texts = zip(*pairs)
+	    eng_texts = list(eng_texts)
+	    spa_texts = list(spa_texts)
+	    dataset = tf.data.Dataset.from_tensor_slices((eng_texts, spa_texts))
+	    dataset = dataset.batch(batch_size)
+	    dataset = dataset.map(format_dataset, num_parallel_calls=4)
+	    return dataset.shuffle(2048).prefetch(16).cache() # 전처리 속도를 높이기 위해 메모리에 캐싱한다.
+
+	train_ds = make_dataset(train_pairs)
+	val_ds = make_dataset(val_pairs)
+
+	'''
+
+![Alt text](./k.png)
+
+	->데이터셋의 크기를 확인
+
+---
+
+### RNN을 사용한 시퀀스-투-시퀀스 모델
+
+---
+
+가장 간단하고 쉬운 방법?
+
+	각 타임스텝의 RNN출력을 그대로 유지하는 것
+
+	'''
+
+	inputs = keras.Input(shape=(sequence_length,), dtype='int64')
+	x = layers.Embedding(input_dim=vocab_size, output_dim=128)(inputs)
+	x = layers.LSTM(32, return_sequences=True)(x)
+	outputs = layers.Dense(vocab_size, activation="softmax")(x)
+	model = keras.Model(inputs, outputs)
+
+	'''
+
+위 방식은 두 가지 이슈 존재
+
+	- 타깃 시퀀스가 항상 소스 시퀀스와 동일한 길이여야 함
+		- 실제로는 이런 경우가 드묾
+		- 기술적으로 치명적인 문제는 아님
+		- 소스 시퀀스나 타깃 시퀀스에 패딩을 추가하여 길이를 맞출 수 있기 때문임
+	- RNN의 스텝별 처리 특징 처리 때문에 모델이 타깃 시퀀스에 있는 토큰 N을 예측하기 위해 소스 시퀀스에 있는 토큰 0...N만 참조할 것
+		- 이런 제약 때문에 이 방식이 대부분의 작업 특히 번역에 적합하지 않음
+		- "The weather is nice today"를 프랑스어인 "Il fait beau aujourd’hui"로 번역한다고 가정해 보자
+		- "The"에서 "Il"를 예측하고, "The weather"에서 "Il fait"를 예측해야 함. 이는 불가능
+
+사람이라면?
+
+	번역을 시작하기 전에 소스 문장 전체를 먼저 읽음
+
+		-> 표준 시퀀스-투-시퀀스 모델이 하는 일
+
+표준 시퀀스-투-시퀀스 모델일때?
+
+	1. 적절한 시퀀스-투-시퀀스 구조에서는 먼저 RNN(인코더)을 사용하여 전체 소스 문장을 하나의 벡터로 (또는 벡터의 집합으로) 바꿈
+		- 이 벡터는 RNN의 마지막 출력이거나 또는 마지막 상태 벡터일 수 있음
+	2. 그다음 이 벡터(또는 벡터 집합)를 다른 RNN(디코더)의 초기 상태로 사용
+	3. 이 RNN은 타깃 시퀀스에 있는 원소 0...N을 사용하여 스텝 N+1을 예측
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbFMQpt%2FbtspFjWb4Pf%2FHKdRo7IRkZh9ttGsWpbqCk%2Fimg.png)
+
+---
+2.  GRU 기반의 인코더와 디코더 구현
+---
+
+	1. GRU 기반 인코더
+
+	'''
+
+	from tensorflow import keras
+	from tensorflow.keras import layers
+
+	embed_dim = 256
+	latent_dim = 1024
+
+	# 영어 소스 문장이 여기에 입력된다.
+	# 입력 이름을 지정하면 입력 딕셔너리로 모델을 훈련할 수 있다.
+	source = keras.Input(shape=(None,), dtype="int64", name="english")
+
+	# 마스킹을 잊지 말하야 한다. 이 방식에서 중요하다.
+	x = layers.Embedding(vocab_size, embed_dim, mask_zero=True)(source)
+	encoded_source = layers.Bidirectional(
+	    # 인코딩된 소스 문장은 양방향 GRU의 마지막 출력이다.
+	    layers.GRU(latent_dim), merge_mode="sum")(x)
+
+	'''
+
+	2. GRU 기반 디코더와 엔드-투-엔트 모델
+
+	'''
+
+	# 스페인어 타깃 시퀀스가 여기에 입력된다.
+	past_target = keras.Input(shape=(None,), dtype="int64", name="spanish")
+
+	# 마스킹을 잊지 말자
+	x = layers.Embedding(vocab_size, embed_dim, mask_zero=True)(past_target)
+
+	decoder_gru = layers.GRU(latent_dim, return_sequences=True)
+	# 인코딩된 소스 시퀀스는 디코더 GRU의 초기 상태가 된다.
+	x = decoder_gru(x, initial_state=encoded_source)
+
+	x = layers.Dropout(0.5)(x)
+	# 다음 토큰을 예측한다.
+	target_next_step = layers.Dense(vocab_size, activation="softmax")(x)
+
+	# 엔드-투-엔드 모델은 소스 시퀀스와 타깃 시퀀스를 한 스텝 앞의 타깃 시퀀스에 매핑한다.
+	seq2seq_rnn = keras.Model([source, past_target], target_next_step)
+
+	'''
+
+		- 훈련하는 동안 디코더는 전체 타깃 시퀀스를 입력받음
+		- RNN의 스텝별 처리 특징 덕분에 입력에 있는 토큰 0...N만 사용하여 타깃에 있는 토큰 N을 예측
+			- 과거 정보만 사용해서 미래를 예측한다는 의미
+
+	3. RNN기반 시퀀스-투-시퀀스 모델 훈련
+
+	'''
+
+	seq2seq_rnn.compile(
+	    optimizer="rmsprop",
+	    loss="sparse_categorical_crossentropy",
+	    metrics=["accuracy"])
+	seq2seq_rnn.fit(train_ds, epochs=15, validation_data=val_ds)
+
+	'''
+
+	결과: 64% 정확도
+
+		- 다음 토큰의 정확도는 기계 번역 모델에서 좋은 척도가 아님
+			- 토큰 N+1을 예측할 때 0에서 N까지 정확한 타깃 토큰을 알고 있다고 가정해야 하기 때문임
+		- "BLEU 점수"를 사용해서 모델을 평가할 가능성이 높음
+
+	4. RNN 인코더와 디코더로 새로운 문장 번역하기
+
+		1. 시드 토큰 "[start]"와 인코딩된 영어 소스 문장을 디코더 모델에 주입
+		2. 그다음 다음 토큰을 예측하고 이를 디코더에 반복적으로 다시 주입
+		3. 이런 식으로 "[end]" 토큰이나 최대 문장 길이에 도달할 때까지 반복마다 새로운 타깃 토큰을 생성
+
+	'''
+
+	import numpy as np
+
+	# 예측된 인덱스를 문자열 토큰으로 변환하기 위한 딕셔너리를 준비한다.
+	spa_vocab = target_vectorization.get_vocabulary()
+	spa_index_lookup = dict(zip(range(len(spa_vocab)), spa_vocab))
+	max_decoded_sentence_length = 20
+
+	def decode_sequence(input_sentence):
+	    tokenized_input_sentence = source_vectorization([input_sentence])
+	    decoded_sentence = "[start]" # 시드 토큰
+	    for i in range(max_decoded_sentence_length):
+	        tokenized_target_sentence = target_vectorization([decoded_sentence])
+
+	        # 다음 토큰을 샘플링한다.
+	        next_token_predictions = seq2seq_rnn.predict(
+	            [tokenized_input_sentence, tokenized_target_sentence])
+	        sampled_token_index = np.argmax(next_token_predictions[0, i, :])
+
+	        # 다음 토큰 예측을 문자열로 바꾸고 생성된 문장에 추가한다.
+	        sampled_token = spa_index_lookup[sampled_token_index]
+	        decoded_sentence += " " + sampled_token
+
+	        if sampled_token == "[end]": # 종료 조건: 최대 길이에 도달하거나 종료 문자가 생성된 경우
+	            break
+	    return decoded_sentence
+
+	test_eng_texts = [pair[0] for pair in test_pairs]
+	for _ in range(20):
+	    input_sentence = random.choice(test_eng_texts)
+	    print("-")
+	    print(input_sentence)
+	    print(decode_sequence(input_sentence))
+
+	'''
+
+		- 매우 간단하지만 효율적이지 않음
+			- 전체 소스 시퀀스와 지금까지 생성된 전체 타깃 시퀀스를 새로운 단어를 샘플링할 때마다 모두 다시 처리해야 함
+![Alt text](./l.png)
+
+시퀀스-투-시퀀스 학습을 위한 RNN방식의 몇 가지 근본적인 제약
+
+	- 소스 시퀀스가 인코더 상태 벡터(또는 벡터 집합)로 완전하게 표현되어야 함
+		- 이는 번역할 수 있는 문장의 크기와 복잡도에 큰 제약이 됨
+		- 사람이 번역할 때 소스 시퀀스를 두 번 보지 않고 완전히 기억만으로 문장을 번역하는 것과 같음
+	- RNN은 오래된 과거를 점진적으로 잊어버리는 경향이 있기 때문에 매우 긴 문장을 처리하는 데 문제가 있음(그레이디언트 소실과 비슷함)
+		- 어느 시퀀스에서든지 100번째 토큰에 도착하면 시작 부분에 대한 정보가 거의 남아 있지 않음
+		- 이는 RNN기반 모델이 긴 문서를 번역하는 데 필수적인 넓은 범위의 문맥을 감지할 수 없다는 의미
+
+---
+
+### 트랜스포머를 사용한 시퀀스-투-시퀀스 모델
+
+---
+
+시퀀스-투-시퀀스 학습?
+
+	트랜스포머가 진정 빛을 발하는 작업
+
+		-> RNN이 다룰 수 있는 것보다 훨씬 길고 복잡한 시퀀스를 성공적으로 처리할 수 있음
+
+특징
+
+	- 소스 문장과 진행 중인 번역 사이를 왔다 갔다 할 것
+		- 번역 문장의 부분 부분을 작성하면서 소스 문장에 있는 여러 단어에 주의를 기울이기 때문임
+	- 트랜스포머 인코더 -> 소스 문장을 읽고 인코딩된 표현을 만듦
+	- 트랜스포머 디코더(Transformer decoder)
+		- 타깃 시퀀스에 있는 토큰 0...N을 읽고 토큰 N+1을 예측
+		- 이를 수행하면서 뉴럴 어텐션을 사용하여 인코딩된 소스 문장에서 어떤 토큰이 현재 예측하려는 타깃 토큰에 가장 관련이 높은지 식별한다는 것
+		- 쿼리-키-값 모델을 다시 떠올려 보면 트랜스포머 디코더에서 타깃 시퀀스는 소스 시퀀스에 있는 다른 부분에 더 주의를 집중하기 위해 사용하는 어텐션 "쿼리" 역할을 함(소스 시퀀스는 키와 값 역할을 함
+
+트랜스포머 디코더
+
+타깃 시퀀스에 적용되는 셀프 어텐션 블록과 마지막 블록의 밀집 층 사이에 추가적인 어텐션 블록이 들어가 있음
+
+![Alt text](./m.png)
+
+---
+3.  트랜스포머 인코더와 디코더 구현
+---
+
+	1. Layer 클래스를 서브클래싱해 TransformerDecoder  구현
+
+	'''
+
+	class TransformerDecoder(layers.Layer):
+	    def __init__(self, embed_dim, dense_dim, num_heads, **kwargs):
+	        super().__init__(**kwargs)
+	        self.embed_dim = embed_dim
+	        self.dense_dim = dense_dim
+	        self.num_heads = num_heads
+	        self.attention_1 = layers.MultiHeadAttention(
+	            num_heads=num_heads, key_dim=embed_dim)
+	        self.attention_2 = layers.MultiHeadAttention(
+	            num_heads=num_heads, key_dim=embed_dim)
+	        self.dense_proj = keras.Sequential(
+	            [layers.Dense(dense_dim, activation="relu"),
+	             layers.Dense(embed_dim),]
+	        )
+	        self.layernorm_1 = layers.LayerNormalization()
+	        self.layernorm_2 = layers.LayerNormalization()
+	        self.layernorm_3 = layers.LayerNormalization()
+
+	        # 이 속성은 층이 입력 마스킹을 출력으로 전달하도록 만든다.
+	        # 케라스에서 마스팅을 사용하려면 명시적으로 설정을 해야 한다.
+	        # compute_mask() 메서드를 구현하지 않으면서 supports_masking 속성을 제공하지 않는 층에 마스킹을 전달하면 에러가 발생한다.
+	        self.supports_masking = True
+
+	    def get_config(self):
+	        config = super().get_config()
+	        config.update({
+	            "embed_dim": self.embed_dim,
+	            "num_heads": self.num_heads,
+	            "dense_dim": self.dense_dim,
+	        })
+	        return config
+
+	'''
+
+추가 고려 사항!
+
+	코잘 패딩(casual padding)을 고려해야 함
+
+코잘 패딩?
+
+	시퀀스-투-시퀀스 트랜스포머를 성공적으로 훈련하는 데 매우 중요
+
+		- TransformerDecoder는 순서에 구애받지 않고 한 번에 타깃 시퀀스 전체를 바라봄
+		- 전체 입력을 사용하도록 둔다면 단순히 입력 스텝 N+1을 출력 위치 N에 복사하는 방법을 학습할 것
+
+									↓
+
+		- 모델이 미래에서 온 정보에 주의를 기울이지 못하도록 어텐션 행렬의 위쪽 절반을 마스킹
+		- 즉, 타깃 토큰 N+1을 생성할 때 타깃 시퀀스에 있는 토큰 0...N에서 온 정보만 사용해야 함
+
+---
+
+	2. 코잘 마스킹을 생성하는 TransformerDecoder 메서드
+
+	'''
+
+	    def get_causal_attention_mask(self, inputs):
+	        input_shape = tf.shape(inputs)
+	        batch_size, sequence_length = input_shape[0], input_shape[1]
+	        i = tf.range(sequence_length)[:, tf.newaxis]
+	        j = tf.range(sequence_length)
+
+	        # 절반은 1이고 나머지는 0인(sequence_length, sequence_length) 크기의 행렬을 만든다.
+	        mask = tf.cast(i >= j, dtype="int32")
+
+	        # 이를 배치 측에 반복하여 (batch_size, sequence_length, sequence_length) 크기의 행렬을 얻는다.
+	        mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))
+	        mult = tf.concat(
+	            [tf.expand_dims(batch_size, -1),
+	             tf.constant([1, 1], dtype=tf.int32)], axis=0)
+	        return tf.tile(mask, mult)
+
+	'''
+
+	3. TransformerDecoder의 정방향 패스
+
+	'''
+
+	def call(self, inputs, encoder_outputs, mask=None):
+	        # 코잘 마스킹을 추출한다.
+	        causal_mask = self.get_causal_attention_mask(inputs)
+
+	        # (타깃 시퀀스에 있는 패딩 위치를 나타내는) 입력 마스킹을 준비한다.
+	        if mask is not None:
+	            padding_mask = tf.cast(
+	                mask[:, tf.newaxis, :], dtype="int32")
+            
+	            # 두 마스킹을 합친다.
+	            padding_mask = tf.minimum(padding_mask, causal_mask)
+        
+	        # 코잘 마스킹을 타깃 시퀀스에 대해 셀프 어텐션을 수행하는 첫 번째 어텐션 층에 전달한다.
+	        attention_output_1 = self.attention_1(
+	            query=inputs,
+	            value=inputs,
+	            key=inputs,
+	            attention_mask=causal_mask)
+        
+	        attention_output_1 = self.layernorm_1(inputs + attention_output_1)
+
+	        # 합친 마스킹을 소스 시퀀스와 타깃 시퀀스를 연관시키는 두 번째 어텐션 층에 전달한다.
+	        attention_output_2 = self.attention_2(
+	            query=attention_output_1,
+	            value=encoder_outputs,
+	            key=encoder_outputs,
+	            attention_mask=padding_mask,
+	        )
+        
+	        attention_output_2 = self.layernorm_2(
+	            attention_output_1 + attention_output_2)
+	        proj_output = self.dense_proj(attention_output_2)
+	        return self.layernorm_3(attention_output_2 + proj_output)
+
+	'''
+
+---
+
+기계 번역을 위한 트랜스포머
+
+---
+- 엔드-투-엔드 트랜스포머
+---
+
+	'''
+
+	embed_dim = 256
+	dense_dim = 2048
+	num_heads = 8
+
+	encoder_inputs = keras.Input(shape=(None,), dtype="int64", name="english")
+	x = PositionalEmbedding(sequence_length, vocab_size, embed_dim)(encoder_inputs)
+	encoder_outputs = TransformerEncoder(embed_dim, dense_dim, num_heads)(x) # 소스 문장을 인코딩한다.
+
+	decoder_inputs = keras.Input(shape=(None,), dtype="int64", name="spanish")
+	x = PositionalEmbedding(sequence_length, vocab_size, embed_dim)(decoder_inputs)
+	x = TransformerDecoder(embed_dim, dense_dim, num_heads)(x, encoder_outputs) # 타깃 시퀀스를 인코딩하고 인코딩된 소스 문장과 합친다.
+	x = layers.Dropout(0.5)(x)
+
+	decoder_outputs = layers.Dense(vocab_size, activation="softmax")(x) # 출력 위치마다 하나의 단어를 예측한다.
+	transformer = keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
+	'''
+
+---
+시퀀스-투-시퀀스 트랜스포머 훈련
+---
+
+	'''
+
+	transformer.compile(
+	    optimizer="rmsprop",
+	    loss="sparse_categorical_crossentropy",
+	    metrics=["accuracy"])
+	transformer.fit(train_ds, epochs=30, validation_data=val_ds)
+
+	'''
+
+---
+- 트랜스포머 모델을 사용하여 새로운 문장 번역하기
+---
+
+	'''
+
+	import numpy as np
+	spa_vocab = target_vectorization.get_vocabulary()
+	spa_index_lookup = dict(zip(range(len(spa_vocab)), spa_vocab))
+	max_decoded_sentence_length = 20
+
+	def decode_sequence(input_sentence):
+	    tokenized_input_sentence = source_vectorization([input_sentence])
+	    decoded_sentence = "[start]"
+	    for i in range(max_decoded_sentence_length):
+	        tokenized_target_sentence = target_vectorization(
+	            [decoded_sentence])[:, :-1]
+	        predictions = transformer(
+            
+	            # 다음 토큰을샘플링한다.
+	            [tokenized_input_sentence, tokenized_target_sentence])
+	        sampled_token_index = np.argmax(predictions[0, i, :])
+
+	        # 다음 토큰 예측을 문자열로 바꾸고 생성된 문장에 추가한다.
+	        sampled_token = spa_index_lookup[sampled_token_index]
+	        decoded_sentence += " " + sampled_token
+
+	        # 종료조건
+	        if sampled_token == "[end]":
+	            break
+	    return decoded_sentence
+
+	test_eng_texts = [pair[0] for pair in test_pairs]
+	for _ in range(20):
+	    input_sentence = random.choice(test_eng_texts)
+	    print("-")
+	    print(input_sentence)
+	    print(decode_sequence(input_sentence))
+
+	'''
+
+![Alt text](./n.png)
