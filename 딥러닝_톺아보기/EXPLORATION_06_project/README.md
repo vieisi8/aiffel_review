@@ -5,6 +5,7 @@
 - 데이터 수집하기
 	- 뉴스 기사 데이터(news_summary_more.csv)를 사용
 	- [sunnysai12345/News_Summary](https://github.com/sunnysai12345/News_Summary)
+
 코드
 
 	'''
