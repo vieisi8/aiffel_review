@@ -583,3 +583,317 @@ PositionalEmbedding과 TransformerDecoder 정의
 ## 딥드림
 
 ---
+
+딥드림??
+
+	합성곱 신경망이 학습한 표현을 사용해 예술적으로 이미지를 조작하는 기법
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FnIe7E%2FbtsqRFB8A7i%2F32eWhMiXkQ5V5SZaCDF4Lk%2Fimg.png)
+
+딥드림 알고리즘
+
+	컨브넷 필터 시각화 기법과 거의 동일
+
+	- 특정 필터가 아닌 전체 층의 활성화를 최대화
+		- 한꺼번에 많은 특성을 섞어 시각화
+	- 빈 이미지 / 노이즈가 조금 있는 입력이 아니라 이미 가지고 있는 이미지 사용
+		- 기존 시각 패턴을 바탕으로 예술적인 스타일로 왜곡
+	- 시각 품질을 높이기 위해 여러 다른 스케일(옥타브)로 처리
+
+---
+
+### 케라스 딥드림 구현
+
+--- 
+
+1. 이미지 다운
+---
+
+	'''
+
+	# TensorFlow와 Keras를 사용하여 이미지를 로드하고 표시하는 작업을 수행
+	from tensorflow import keras
+	import matplotlib.pyplot as plt
+
+	# 이미지 파일을 다운로드하고 저장할 경로를 설정한다. get_file함수는 지정된 URL에서 파일을 다운로드하고 해당 파일의 경로를 반환한다.
+	base_image_path = keras.utils.get_file(
+	    "coast.jpg", origin="https://img-datasets.s3.amazonaws.com/coast.jpg")
+
+	# 축을 표시하지 않도록 설정
+	plt.axis("off")
+
+	# 다운로드한 이미지를 로드하고 imshow 함수를 사용하여 이미지를 표시한다. 
+	plt.imshow(keras.utils.load_img(base_image_path))
+
+	'''
+
+![Alt text](./a.png)
+
+사전 훈련된 모델
+
+	딥드림에서 사용된 커브넷 -> 인셉션 모델
+
+2. 사전 훈련된 inceptionV3 모델 로드하기
+---
+
+	'''
+
+	# TensorFlow의 Keras 라이브러리에서 inception_v3 모델을 불러오기 위해 해당 모듈을 임포트
+	from tensorflow.keras.applications import inception_v3
+
+	# InceptionV3 클래스를 사용하여 InceptionV3 모델을 불러온다. 매개변수로는 다음을 사용
+	# weights="imagenet": ImageNet 데이터셋에서 사전 훈련된 가중치를 사용
+	# include_top=False : 마지막 fully connected 레이어를 포함하지 않고 모델을 불러온다. 이렇게 함으로 모델의 마지막 레이어를 제외하고 특성 추출 부분만을 사용할 수 있다.
+	model = inception_v3.InceptionV3(weights="imagenet", include_top=False)
+
+	'''
+
+다양한 중간층의 활성화를 반환하는 특성 추출 모델을 생성
+
+	경사 상승법 동안 최대화할 손실에 대한 각 층의 기여도에 가중치를 주기 위해 스칼라 값을 선택
+
+3. 딥드림 손실에 대한 각 층의 기여도 설정
+---
+
+	'''
+
+	layer_settings = { 
+	    # 활성화를 최대화할 층과 전체 손실에 대한 가중치. 이 설정을 바꾸면 새로운 시각 효과를 얻을 수 있음
+	    "mixed4": 1.0,
+	    "mixed5": 1.5,
+	    "mixed6": 2.0,
+	    "mixed7": 2.5,
+	}
+
+	# 각 층의 심볼릭 출력을 모으는 역할
+	# model.get_layer를 사용하여 각 층의 심볼릭 출력을 'output_dict'에 저장
+	outputs_dict = dict(
+	    [
+	        (layer.name, layer.output)
+	        for layer in [model.get_layer(name) for name in layer_settings.keys()]
+	    ]
+	)
+
+	# 각 타깃 층의 활성화 값을 (하나의 딕셔너리로) 변환하는 모델
+	# 이렇게 생성된 feature_extractor 모델은 딥드림 단계에서 각 층의 활성화 값을 활용하는 데 사용
+	feature_extractor = keras.Model(inputs=model.inputs, outputs=outputs_dict)
+
+	'''
+
+손실 계산
+
+	경사 상승법을 사용하여 각 스케일에서 최대화할 값 계산
+
+		- 여러 층에 있는 모든 필터 활성화를 동시에 최대화
+		- 상위 층의 활성화의 L2놈에 가중치를 준 평균을 최대화
+
+4. 딥드림 손실
+---
+
+	'''
+
+	def compute_loss(input_image):
+	    # feature_extractor를 사용하여 입력 이미지의 다양한 중간층에서의 활성화 값을 추출한다
+	    features = feature_extractor(input_image)
+
+	    # 손실을 0으로 초기화
+	    loss = tf.zeros(shape=())
+
+	    for name in features.keys():
+	        # 미리 설정된 layer_settings에 따라 각 층에 대한 가중치 개수를 가져옴. 이 가중치는 해당 층의 활성화 값이 최대화되는 정도를 조절한다.
+	        coeff = layer_settings[name]
+
+	        activation = features[name]
+        
+	        # 경계 부근의 인공적인 패턴을 피하기 위해 테두리가 아닌 픽셀만 손실에 추가
+	        # 활성화 값의 제곱을 계산하고 해당 값의 평균을 구한다
+	        # 가중치 계수를 곱하여 최종 손실에 누적
+	        loss += coeff * tf.reduce_mean(tf.square(activation[:, 2:-2, 2:-2, :]))
+
+	    # 최종적으로 계산된 손실 값을 반환
+	    return loss
+
+	'''
+
+5. 경사 상승법 정의
+---
+
+	'''
+
+	import tensorflow as tf
+
+	@tf.function # tf.function으로 컴파일하여 훈련 스텝의 속도를 높인다.
+	# 현재 이미지에 대한 딥드림 손실의 그레이디언트를 계산하고, 그레이디언트를 정규화하여 이미지를 업데이트하는 함수
+	def gradient_ascent_step(image, learning_rate):
+
+	    # 현재 이미지에 대한 딥드림 손실의 그레이디언트를 계산
+	    with tf.GradientTape() as tape:
+	        tape.watch(image)
+	        loss = compute_loss(image)
+	    grads = tape.gradient(loss, image)
+
+	    # 그레이디언트를 L2 정규화하여 방향을 정규화한다.
+	    grads = tf.math.l2_normalize(grads)
+
+	    # 이미지를 학습률('learning_rate')과 그레이디언트를 이용하여 업데이트한다
+	    image += learning_rate * grads
+
+	    # 손실과 업데이트된 이미지를 반환한다.
+	    return loss, image
+
+
+	def gradient_ascent_loop(image, iterations, learning_rate, max_loss=None): # 주어진 이미지 스케일(옥타브)에 대한 경사 상승법을 수행
+	    # iterations 횟수만큼 딥드림 손실을 증가시키는 방향으로 반복적으로 이미지를 업데이트
+	    for i in range(iterations):
+	        loss, image = gradient_ascent_step(image, learning_rate)
+
+	        # 손실이 일정 임계 값을 넘으면 중지(과도하게 최적화하면 원치 않는 이미지를 만들 수 있음)
+	        if max_loss is not None and loss > max_loss:
+	            break
+        
+	        # 각 손실에서의 손실 값을 출력
+	        print(f"... 스텝 {i}에서 손실 값: {loss:.2f}")
+	    return image
+
+	'''
+
+딥드림 알고리즘의 바깥쪽 루프
+
+옥타브 스케일
+
+	3개의 다른 '옥타브'로 이미지를 처리
+
+훈련 스타일
+
+	가장 작은 값에서 가장 큰 값까지 각 옥타브에서 gradient_ascent_loop()로 경사 상승법 단계를 30번 실행하여 앞서 정의한 손실을 최대화
+
+옥타브 간 이미지 크기 조정
+
+	작은 이미지에서 시작하여 점점 크기를 키움 
+
+		-> 각 옥타브 사이에서는 이미지가 40% 증가
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FboXT1n%2FbtsqKxFsyjK%2FZ2Zie1d8FkC5N9G0cTiuu1%2Fimg.png)
+
+6. 필요한 파라미터 정의
+---
+
+	'''
+
+	step = 20. # 경사 상승법 단계 크기
+	num_octave = 3 # 경사 상승법을 실행할 스케일 횟수
+	octave_scale = 1.4 # 연속적인 스케일 사이의 크기 비율
+	iterations = 30 # 스케일 단계마다 수행할 경사 상승법 단계 횟수
+	max_loss = 15. # 이보다 손실이 커지면 현재 스케일에서 경사 상승법 과정을 중지
+
+	'''
+
+7. 이미지 처리 유틸리티 정의
+---
+
+	'''
+
+	import numpy as np
+
+	# 이미지를 로드하고 크기를 바꾸어 적절한 배열로 변환하는 유틸리티 함수
+	def preprocess_image(image_path):
+	    img = keras.utils.load_img(image_path)
+	    img = keras.utils.img_to_array(img)
+	    img = np.expand_dims(img, axis=0)
+	    img = keras.applications.inception_v3.preprocess_input(img)
+	    return img
+
+	# 넘파이 배열을 이미지로 변환하는 유틸리티 함수
+	def deprocess_image(img):
+	    img = img.reshape((img.shape[1], img.shape[2], 3))
+
+	    # inceptionV3전처리 복원하기
+	    img += 1.0
+	    img *= 127.5
+
+	    # unit8로 바꾸고 [0,255] 범위로 클리핑한다.
+	    img = np.clip(img, 0, 255).astype("uint8")
+	    return img
+	
+	'''
+---
+tips
+
+스케일을 연속적으로 증가
+
+	이미지 디테일을 많이 잃게 됨
+
+해결방법
+
+	스케일을 늘린 후 이미지에 손실된 디테일 재주입
+
+ex) 작은 이미지:s / 큰 이미지:l
+
+	크기 l로 변경된 원본 이미지와 크기 s로 변경된 원본 이미지 사이의 차이를 계산
+
+		-> 이 차이가 s -> l로 변경되었을 때 잃어버린 디테일
+---
+
+8. 연속적인 여러 개의 '옥타브'에 걸쳐 경사 상승법 실행
+---
+
+	'''
+
+	# 테스트 이미지를 로드한다.
+	original_img = preprocess_image(base_image_path)
+
+	# 원본 이미지의 형태(shape)의 높이와 너비를 추출한다.
+	original_shape = original_img.shape[1:3]
+
+	# 여러 옥타브에서 이미지 크기를 계산한다. 이미지를 크게 변형하면서 작은 세부 사항을 고려할 수 있도록 하기 위함
+	successive_shapes = [original_shape]
+	for i in range(1, num_octave):
+	    shape = tuple([int(dim / (octave_scale ** i)) for dim in original_shape])
+	    successive_shapes.append(shape)
+	successive_shapes = successive_shapes[::-1]
+
+	# 원본 이미지를 첫 번째 옥타브의 크기로 줄인다.
+	shrunk_original_img = tf.image.resize(original_img, successive_shapes[0])
+
+	# 이미지를 복사한다(원본 이미지는 그대로 보관). 이후 경사 상승법을 적용하여 이미지를 수정할 것
+	img = tf.identity(original_img)
+
+	# 여러 옥타브에 대해 반복
+	for i, shape in enumerate(successive_shapes):
+	    print(f"{shape} 크기의 {i}번째 옥타브 처리")
+
+	    # 딥드림 이미지 스케일을 높인다.(현재 옥타브의 크기로 이미지를 조절)
+	    img = tf.image.resize(img, shape)
+
+	    # 경사 상승법을 실행하고 딥드림 이미지를 수정한다.
+	    img = gradient_ascent_loop(
+	        img, iterations=iterations, learning_rate=step, max_loss=max_loss
+	    )
+
+	    # 작은 버전의 원본 이미지의 스케일을 높인다. 픽셀 경계가 보일 것이다.
+	    upscaled_shrunk_original_img = tf.image.resize(shrunk_original_img, shape)
+
+	    # 이 크기에 해당하는 고해상도 버전의 원본 이미지를 계산한다.
+	    same_size_original = tf.image.resize(original_img, shape)
+
+	    # 두 이미지의 차이가 스케일을 높였을 때 손실된 디테일이다.
+	    lost_detail = same_size_original - upscaled_shrunk_original_img
+
+	    # 손실된 디테일을 딥드림 이미지에 다시 주입한다.
+	    img += lost_detail
+
+	    # 다음 옥타브를 위해 작은 버전의 원본 이미지를 현재 옥타브 크기로 다시 조절한다.
+	    shrunk_original_img = tf.image.resize(original_img, shape)
+
+	# 최종 경과를 저장한다.
+	keras.utils.save_img("dream.png", deprocess_image(img.numpy()))
+
+	'''
+
+![Alt text](./b.png)
+
+---
+
+## 뉴럴 스타일 트랜스퍼
+
+---
