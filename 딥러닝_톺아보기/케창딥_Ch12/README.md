@@ -897,3 +897,768 @@ ex) 작은 이미지:s / 큰 이미지:l
 ## 뉴럴 스타일 트랜스퍼
 
 ---
+
+뉴럴 스타일 트랜스퍼?
+
+	타킷 이미지의 콘텐츠를 보존하면서 참조 이미지의 스타일을 타킷 이미지에 적용
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FTrp3g%2FbtsqM8y8mdf%2FkkqwL9OIHWhtPu7GZnkt5k%2Fimg.png)
+
+스타일?
+
+	질감, 색깔, 이미지에 있는 다양한 크디의 시각 요소를 의미
+
+		-> 위 그림(빈센트 반 고흐(Vincent Van Gogh)의 <별이 빛나는 밤(Starry Night)>)에서 파란색과 노란색의 원을 그리는 듯한 붓질을 하나의 스타일
+
+콘텐츠?
+
+	이미지에 있는 고수준의 대형 구조 의미
+
+		-> 튀빙겐 사진의 건물
+
+스타일 트랜스퍼의 목표
+
+	참조 이미지의 스타일을 적용하면서 원본 이미지의 콘텐츠를 보존하는 것
+
+손실 함수 수학적으로 정의
+
+	loss = distance(style(reference_image) - style(combination_image)) + distance(content(original_image) - content(combination_image))
+
+		- distance -> (L2 노름 같은)노름 함수
+		- content -> 이미지의 콘텐츠 표현을 계산
+
+	최소화 하면?
+
+		- style(combination_image)는 style(reference_image)와 유사해짐
+		- content(combination_image)는 content(original_image)와 유사해짐
+
+---
+
+### 콘텐츠 손실
+
+---
+
+네트워크 하위 층의 활성화
+
+	지역적 정보를 가짐
+
+네트워크 상위 층의 활성화
+
+	전역적, 추상적 정보를 가짐
+
+네트워크
+
+	이미지를 다른 크기의 콘텐츠로 분해한다고 볼 수 있음
+
+		-> 상위 층 표현은 추상적 이미지 콘텐츠를 찾는 데 활용
+
+콘텐츠 손실?
+
+	1. 타깃 이미지와 생성된 이미지를 컨브넷에 주입하여 상위 층 활성화를 계산한 후
+	2. 이 두 값의 L2놈(norm)을 사용하여 생성된 이미지를 타깃 이미지와 유사하게 만드는 방법
+
+		-> 컨브넷의 상위 층에서 이미지 콘텐츠를 보존하는데 사용
+
+---
+
+### 스타일 손실
+
+---
+
+스타일 손실
+
+	여러 컨브넷 층을 사용
+
+		-> 각 층의 활성화 출력의 그람 행렬을 이용
+
+그람 행렬?
+
+	층 내 특성 맵들의 내적
+
+		-> 특성 간의 상간관계를 나타냄
+
+	-> 이로써 특정 크기의 공간적 패턴 통계를 잡아내며 택스처에 해당
+
+
+
+스타일 손실 계산법
+
+	1. 스타일 참조 이미지와 생성된 이미지를 이용해 각 층의 활성화를 계산한 후
+	2. 이러한 상관관계를 유사하게 유지하도록 만들어 생성된 이미지에서 텍스처가 원본과 유사하게 보이도록 함
+
+---
+tips
+
+콘텐츠 보존
+
+	원본 이미지와 생성된 이미지의 상위 층 활성화 유사성 유지, 두 이미지는 컨브넷에서 동일한 것으로 인식되어야 함
+스타일 보존
+
+	저수준 및 고수준 층에서 활성화의 상관관계 유사성 유지. 특성 상관관계는 텍스처를 의미하며, 생성된 이미지와 스타일 참조 이미지는 다양한 크기의 텍스처를 공유해야 함
+
+---
+
+### 케라스로 뉴럴 스타일 트랜스퍼 구현
+
+---
+
+컨브넷?
+
+	어떤 사전 훈련된 컨브넷이든 사용하여 구현 가능
+
+		-> VGG19 네트워크를 사용(합성곱 층이 3개 더 추가)
+
+구현 과정
+
+	1. 스타일 참조 이미지, 베이스 이미지, 생성된 이미지에 대한 VGG19의 층 활성화를 동시에 계산하는 네트워크를 설정
+	2. 각 이미지의 활성화를 이용하여 설명한 대로 손실 함수를 정의
+	3. 손실을 최소화하여 원하는 스타일 트랜스퍼를 구현
+	4. 경사 하강법을 활용해 손실 함수를 최소화하는 과정을 설정
+
+1. 스타일 이미지와 콘텐츠 이미지 준비하기
+---
+
+	이미지 크기를 높이가 400 픽셀에 맞춰 변경
+
+	'''
+
+	from tensorflow import keras
+
+	# keras.utils.get_file 함수를 사용하여 변환할 이미지와 스타일 이미지를 다운로드
+	base_image_path = keras.utils.get_file( # 변환할 이미지 경로
+	    "sf.jpg", origin="https://img-datasets.s3.amazonaws.com/sf.jpg")
+	style_reference_image_path = keras.utils.get_file( # 스타일 이미지 경로
+	    "starry_night.jpg", origin="https://img-datasets.s3.amazonaws.com/starry_night.jpg")
+
+	# keras.utils.load_img 함수를 사용하여 기본 이미지의 크기를 가져온다
+	original_width, original_height = keras.utils.load_img(base_image_path).size
+
+	# 생성할 이미지의 높이를 설정하고, 원래 이미지 비율에 맞춰 너비를 계산
+	img_height = 400
+	img_width = round(original_width * img_height / original_height)
+
+	'''
+
+![Alt text](./c.png)
+
+	-> (콘텐츠 이미지)놉 힐에서 본 샌프란시스코
+
+![Alt text](./d.png)
+
+	-> (스타일 이미지)반 고흐의 <별이 빛나는 밤>
+
+2. 입출력할 이미지의 로드, 전처리, 사후 처리를 위한 유틸리티 함수 정의
+---
+
+	'''
+
+	import numpy as np
+
+	# 이미지를 로드하고, 크기를 바꾸어 적절한 배열로 변환하는 유틸리티 함수
+	def preprocess_image(image_path): 
+	    img = keras.utils.load_img(
+	        image_path, target_size=(img_height, img_width))
+	    img = keras.utils.img_to_array(img)
+	    img = np.expand_dims(img, axis=0)
+	    img = keras.applications.vgg19.preprocess_input(img)
+	    return img
+
+	# 넘파이 배열을 이미지로 변환하는 함수
+	def deprocess_image(img):
+	    img = img.reshape((img_height, img_width, 3))
+
+	    # ImageNet의 평균 픽셀 값을 더한다. 이는 vgg19.preprocess_input함수에서 수행한 변환을 복원한다.
+	    img[:, :, 0] += 103.939
+	    img[:, :, 1] += 116.779
+	    img[:, :, 2] += 123.68
+
+	    # 이미지를 "BGR"에서 "RGB"로 변환한다. 이것도 vgg19.preprocess_input 함수에서 수행한 변환을 복원하기 위해서이다.
+	    img = img[:, :, ::-1]
+    
+	    img = np.clip(img, 0, 255).astype("uint8")
+	    return img
+
+	'''
+
+3. 사전 훈련된 VGG19 모델을 사용해 특성 추출기 만들기
+---
+
+	'''
+
+	# ImageNet에서 사전 훈련된 가중치로 VGG19 모델을 만든다.
+	model = keras.applications.vgg19.VGG19(weights="imagenet", include_top=False)
+
+	# 모델의 상위층 활성화 값을 추출하기 위해 각 층의 출력을 딕셔너리로 저장한다.
+	outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
+
+	# 이 모델은 모든 타깃 층의 활성화 값을 (하나의 딕셔너리로) 변환한다.
+	feature_extractor = keras.Model(inputs=model.inputs, outputs=outputs_dict)
+
+	'''
+
+4. 콘텐츠 손실, 스타일 손실 정의
+---
+
+	'''
+
+	# 손실 함수를 정의하는 부분. 손실은 원본 이미지와 생성된 이미지의 차이를 제곱하여 모든 픽셀의 값을 합산한 값
+	def content_loss(base_img, combination_img):
+	    return tf.reduce_sum(tf.square(combination_img - base_img))
+
+	# 주어진 텐서 x의 그람 행렬을 계산한다
+	def gram_matrix(x):
+	    x = tf.transpose(x, (2, 0, 1)) # 입력 텐서의 차원을 변환한다.
+	    features = tf.reshape(x, (tf.shape(x)[0], -1)) # 텐서를 2D 행렬로 변환한다.
+	    gram = tf.matmul(features, tf.transpose(features)) # 2D 행렬과 그 전치행렬을 곱하여 그람 행렬을 계산한다.
+	    return gram
+
+	# 스타일 참조 이미지와 생성된 이미지 간의 손실을 계산한다
+	def style_loss(style_img, combination_img):
+	    S = gram_matrix(style_img) # 스타일 이미지의 그람 행렬을 계산한다.
+	    C = gram_matrix(combination_img) # 생성된 이미지의 그람 행렬을 계산한다
+	    channels = 3 # 컬러 채널의 수(RGB)
+	    size = img_height * img_width # 이미지의 크기
+
+	    # 그람 행렬 간의 제곱 차이를 계산하고 손실을 적절하게 스케일링
+	    return tf.reduce_sum(tf.square(S - C)) / (4.0 * (channels ** 2) * (size ** 2))
+
+	'''
+
+5. 추가적인 손실(총 변위 손실) 함수 정의
+---
+
+	이미지의 공간적인 부드러움을 유지하고 격자 무늬가 나타나는 것을 방지하여 생성된 이미지의 자연스러움을 촉진하는 역할
+
+		-> 일종의 규제 항으로 이해할 수 있음
+
+	'''
+
+	def total_variation_loss(x):
+	    # a는 이미지 x의 세로 방향 픽셀 간의 차이의 제곱을 나타냄.
+	    a = tf.square(
+	        x[:, : img_height - 1, : img_width - 1, :] - x[:, 1:, : img_width - 1, :]
+	    )
+
+	    # b는 이미지 x의 가로 방향 픽셀 간의 차이의 제곱을 나타냄
+	    b = tf.square(
+	        x[:, : img_height - 1, : img_width - 1, :] - x[:, : img_height - 1, 1:, :]
+	    )
+
+	    # a와 b의 제곱 값들을 더한 후 1.25제곱근을 취한 값을 모두 합산하여 변환. 이 값은 이미지의 전체 변화량을 나타내는 총 변동 손실
+	    return tf.reduce_sum(tf.pow(a + b, 1.25))
+
+	'''
+
+6. 최소화할 최종 손실 정의
+---
+
+	세 손실의 가중치 평균을 최소화함
+
+	'''
+
+	style_layer_names = [ # 스타일 손실에 사용할 층
+	    "block1_conv1",
+	    "block2_conv1",
+	    "block3_conv1",
+	    "block4_conv1",
+	    "block5_conv1",
+	]
+
+	# 콘텐츠 손실에 사용할 층
+	content_layer_name = "block5_conv2"
+
+	# 총 변이 손실의 기여 가중치
+	total_variation_weight = 1e-6
+
+	# 스타일 손실의 기여 가중치
+	style_weight = 1e-6
+
+	# 콘텐츠 손실의 기여 가중치
+	content_weight = 2.5e-8
+
+	def compute_loss(combination_image, base_image, style_reference_image):
+	    # 입력 이미지를 합쳐서 하나의 텐서로 만든다.
+	    input_tensor = tf.concat(
+	        [base_image, style_reference_image, combination_image], axis=0
+	    )
+
+	    # 각 이미지에 대한 활성화 값을 추출한다.
+	    features = feature_extractor(input_tensor)
+    
+	    # 손실을 0으로 초기화
+	    loss = tf.zeros(shape=())
+
+	    # 콘텐츠 손실을 더한다.
+	    layer_features = features[content_layer_name]
+	    base_image_features = layer_features[0, :, :, :]
+	    combination_features = layer_features[2, :, :, :]
+	    loss = loss + content_weight * content_loss(
+	        base_image_features, combination_features
+	    )
+
+	    # 스타일 손실을 더한다.
+	    for layer_name in style_layer_names:
+	        layer_features = features[layer_name]
+	        style_reference_features = layer_features[1, :, :, :]
+	        combination_features = layer_features[2, :, :, :]
+	        style_loss_value = style_loss(
+	          style_reference_features, combination_features)
+	        loss += (style_weight / len(style_layer_names)) * style_loss_value
+
+	    # 총 변위 손실을 더한다
+	    loss += total_variation_weight * total_variation_loss(combination_image)
+
+	    # 손실값 반환
+	    return loss
+
+	'''
+
+		content_weight?
+
+			생성된 이미지에 타깃 콘텐츠가 얼마나 나타날지를 조절하는 계수
+
+		-> content_weight값을 높이면 생성된 이미지에 원본 콘텐츠가 강조될 수 있음
+
+7. 경사 하강법 단계 설정
+---
+
+	'''
+
+	import tensorflow as tf
+
+	@tf.function # tf.function으로 컴파일하여 훈련 스텝의 속도를 높인다.
+	def compute_loss_and_grads(combination_image, base_image, style_reference_image):
+	    with tf.GradientTape() as tape:
+	        loss = compute_loss(combination_image, base_image, style_reference_image)
+	    grads = tape.gradient(loss, combination_image)
+	    return loss, grads
+
+	optimizer = keras.optimizers.SGD(
+	    keras.optimizers.schedules.ExponentialDecay( 
+	        # 학습률 100에서 시작하여 100 스텝마다 4%씩 감소시킨다.
+	        initial_learning_rate=100.0, decay_steps=100, decay_rate=0.96
+	    )
+	)
+
+	base_image = preprocess_image(base_image_path)
+	style_reference_image = preprocess_image(style_reference_image_path)
+	# 훈련하는 동안 합성된 이미지를 업데이트하기 때문에 Variable에 저장
+	combination_image = tf.Variable(preprocess_image(base_image_path))
+
+	iterations = 4000
+	for i in range(1, iterations + 1):
+	    loss, grads = compute_loss_and_grads(
+	        combination_image, base_image, style_reference_image
+	    )	
+
+    	# 스타일 트랜스퍼 손실이 감소되는 방향으로 합성 이미지를 업데이트한다.
+    	optimizer.apply_gradients([(grads, combination_image)])
+
+    	if i % 100 == 0:
+        	print(f"{i}번째 반복: loss={loss:.2f}")
+	        img = deprocess_image(combination_image.numpy())
+	        fname = f"combination_image_at_iteration_{i}.png"
+
+	        # 일정한 간격으로 합성 이미지를 저장
+	        keras.utils.save_img(fname, img)
+
+	'''
+
+![Alt text](./e.png)
+
+	- 이미지의 텍스처를 변화시키거나 전이하는 것
+		- 스타일 이미지의 텍스처가 비슷한 패턴을 가지고 있을 때 효과적으로 작동
+	- 매우 추상적인 결과물은 만들어내지 못함
+	- 느리지만 간단한 변환을 수행하여 작고 빠른 컨브넷을 사용하여 학습할 수 있음
+
+---
+
+## 변이형 오토인코더를 사용한 이미지 생성
+
+---
+
+### 이미지의 잠재 공간에서 샘플링
+
+---
+
+이미지 생성의 핵심 아이디어
+
+	각 포인트가 실제와 같은 이미지로 매핑될 수 있는 저차원 잠재 공간의 표현을 만드는 것 
+
+생성자 / 디코더 ??
+
+	잠재 공간의 한 포인트를 입력 받아 이미지(픽셀 그리드)를 출력하는 모듈
+
+이미지 생성 과정
+
+	1. 잠재 공간을 학습
+	2. 잠재 공간에서 포인트 하나를 샘플링
+	3. 이미지 공간으로 매핑해 이미지 생성
+
+![Alt text](./f.png)
+
+---
+
+### 이미지 변형을 위한 개념 벡터
+
+---
+
+개념 벡터?
+
+	잠재 공간이나 임베딩 공간이 주어지면 이 공간의 어떤 방향은 원본 데이터의 흥미로운 변화를 인코딩한 축일 수 있음
+
+ex) 얼굴 이미지에 대한 잠재 공간에 웃음 벡터 존재
+
+	z 포인트 -> 어떤 얼굴의 표현 임베딩한 것
+
+	z+s 포인트 -> 같은 얼굴이 웃고 있는 표현 임베딩한 것
+
+	주의할 점
+
+		z+s 포인트가 웃는 얼굴 표현 이라고 해서 s 포인트가 웃는 입모양 포인트라고 단정 지을 수 없음
+
+![Alt text](https://i.imgur.com/ttuiuqz.jpg)
+
+---
+
+### 변이형 오토인코더
+
+---
+
+오토인코더(AE)?
+
+	- 입력을 저차원 잠재 공간으로 임코딩한 후 디코딩하여 복원하는 네트워크
+	- 인코더가 주된 역할
+		-  데이터를 압축(인코딩)하여 저차원 표현(latent space)으로 변환하는 것이 핵심
+	- 디코더는 부가적인 부분
+		- 인코더로부터 나온 저차원 표현을 다시 원본 데이터로 복원하는 역할
+
+![Alt text](https://i.imgur.com/mk074W5.jpg)
+
+전통 오토인코더(AE)의 한계점
+
+	- 특별히 유용하거나 구조화가 잘된 잠재 공간을 만들지 못함
+	- 압축도 아주 뛰어나지 않음
+
+변이형 오토인코더(VAE)?
+
+	- 딥러닝과 베이즈 추론의 아이디어를 혼합한 오토인코더의 최신 버전
+	- 디코더가 주된 역할
+		- 잠재 공간에서 샘플링한 잠재 변수로부터 데이터를 생성하는 것이 핵심
+	- 인코더는 부가적인 부분
+		- 입력 데이터를 확률 분포(보통 정규분포)로 매핑하여 잠재 변수의 평균과 분산을 예측하는 역할
+
+변이형 오토인코더(VAE) 특징
+
+	- 약간의 통계 기법을 통해 연속적이고 구조적인 잠재 공간 학습 가능
+	- 평균과 분산 파라미터를 사용해 이 분포에서 무작위로 하나의 샘플 추출
+	- 잠재 공간에서 샘플링한 모든 포인트는 유요한 출력으로 디코딩 됨
+
+![Alt text](https://i.imgur.com/EEyWTOh.jpg)
+
+변이형 오토인코더(VAE) 동작 순서
+
+	1. 인코더 모듈이 입력 샘플 input_img를 잠재 공간의 두 파라미터 z_mean과 z_log_var로 변환
+	2. 입력 이미지가 생성되었다고 가정한 잠재 공간의 정규 분포에서 포인트 z를 z = z_mean + exp(0.5 * z_log_var) * epsilon 처럼 무작위로 샘플링
+		- epsilon은 작은 값을 가진 랜덤 텐서입니다.
+	3. 디코더 모듈은 잠재 공간의 이 포인트를 원본 입력 이미지로 매핑해 복원
+
+		- 잠재 공간의 위치(z_mean)
+			- input_img와 비슷한 이미지로 디코딩될 것
+			- 잠재 공간을 연속적이고 의미 있는 공간으로 만들어 줌
+		- 잠재 공간은 매우 구조적이고 개념 벡터로 다루기에 적합함
+
+
+변이형 오토인코더(VAE)의 손실 함수
+
+![Alt text](./g.png)
+
+	- 재구성 손실(reconstruction loss)
+		- 원본 입력값을 출력으로 생성할 수 있게 복원해주는 loss
+			- VAE에서 decoder의 output pi 는 베르누이 분포(이진분류) 를 따른다고 가정
+		- binary cross entropy
+			- predicted value pi 와 target value xi 의 차이를 구하기 위함
+
+![Alt text](./h.png)
+
+	- 규제 손실(regularization loss)
+		- 표준 정규분포에서 샘플링 된 값 p(z)과 encoder output 인  qϕ(z|xi)qϕ(z|xi) 의 차이가 적도록 해주는 loss
+			- 정규분포로 근사하게 만들기 위함
+		- KLdivergence 계산 사용
+			- 두개의 확률 분포에 대한 차이를 비교
+			- 확률 분포 Q, P
+				- Q의 분포와 P의 분포가 어느 정도 닮았는지 수치적으로 파악 가능
+
+![Alt text](./i.png)
+
+변이형 오토인코더(VAE)의 간단한 코드화
+
+	'''
+
+	# 입력을 평균과 분산 파라미터로 인코딩
+	z_mean, z_log_variance = encoder(input_img)
+
+	# 무작위로 선택한 작은 epsilon 값을 사용해 잠재 공간의 포인트 샘플링
+	z = z_mean + exp(z_log_variance) * epsilon
+
+	# z를 이미지로 디코딩
+	reconstructed_img = decoder(z)
+
+	# 입력 이미지와 재구성 이미지를 매핑한 오토인코더 모델을 훈련
+	model = Model(input_img, reconstructed_img)
+
+	'''
+
+---
+
+### 케라스로 VAE 구현
+
+---
+
+VAE 모델 구성
+
+	- 인코더 네트워크 -> 실제 이미지를 잠재 공간의 평균과 분산으로 변환
+	- 샘플링 층 -> 평균관 분산을 받아 잠재 공간에서 랜덤한 포인트 샘플링
+	- 디코더 네트워크 -> 잠재 공간의 포인트를 이미지로 변환
+
+1. VAE 인코더 네트워크
+---
+
+	'''
+
+	AE 인코더 네트워크
+
+	from tensorflow import keras
+	from tensorflow.keras import layers
+
+	latent_dim = 2
+
+	encoder_inputs = keras.Input(shape=(28, 28, 1))
+	x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
+	x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
+	x = layers.Flatten()(x)
+	x = layers.Dense(16, activation="relu")(x)
+	z_mean = layers.Dense(latent_dim, name="z_mean")(x)
+	z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
+	encoder = keras.Model(encoder_inputs, [z_mean, z_log_var], name="encoder")
+
+	encoder.summary()
+
+	'''
+
+	결과:
+
+	'''
+
+	Model: "encoder"
+	__________________________________________________________________________________________________
+	 Layer (type)                   Output Shape         Param #     Connected to                     
+	==================================================================================================
+	 input_1 (InputLayer)           [(None, 28, 28, 1)]  0           []                               
+                                                                                                  
+	 conv2d (Conv2D)                (None, 14, 14, 32)   320         ['input_1[0][0]']                
+                                                                                                  
+	 conv2d_1 (Conv2D)              (None, 7, 7, 64)     18496       ['conv2d[0][0]']                 
+                                                                                                  
+	 flatten (Flatten)              (None, 3136)         0           ['conv2d_1[0][0]']               
+                                                                                                  
+	 dense (Dense)                  (None, 16)           50192       ['flatten[0][0]']                
+                                                                                                  
+	 z_mean (Dense)                 (None, 2)            34          ['dense[0][0]']                  
+	                                                                                                  
+	 z_log_var (Dense)              (None, 2)            34          ['dense[0][0]']                  
+                                                                                                  
+	==================================================================================================
+	Total params: 69,076
+	Trainable params: 69,076
+	Non-trainable params: 0
+	__________________________________________________________________________________________________
+
+	'''
+
+2. 잠재 공간 샘플링 층
+---
+
+	'''
+
+	import tensorflow as tf
+
+	class Sampler(layers.Layer):
+	    def call(self, z_mean, z_log_var):
+	        batch_size = tf.shape(z_mean)[0]
+	        z_size = tf.shape(z_mean)[1]
+	        epsilon = tf.random.normal(shape=(batch_size, z_size))
+	        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+
+	'''
+
+3. 잠재 공간 포인트를 이미지로 매핑하는 VAE 디코더 네트워크
+---
+
+	'''
+
+	latent_inputs = keras.Input(shape=(latent_dim,))
+	x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
+	x = layers.Reshape((7, 7, 64))(x)
+	x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
+	x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
+	decoder_outputs = layers.Conv2D(1, 3, activation="sigmoid", padding="same")(x)
+	decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
+
+	decoder.summary()
+
+	'''
+
+	결과:
+
+	'''
+
+	Model: "decoder"
+	_________________________________________________________________
+	 Layer (type)                Output Shape              Param #   
+	=================================================================
+	 input_2 (InputLayer)        [(None, 2)]               0         
+                                                                 
+	 dense_1 (Dense)             (None, 3136)              9408      
+                                                                 
+	 reshape (Reshape)           (None, 7, 7, 64)          0         
+                                                                 
+	 conv2d_transpose (Conv2DTra  (None, 14, 14, 64)       36928     
+	 nspose)                                                         
+                                                                 
+	 conv2d_transpose_1 (Conv2DT  (None, 28, 28, 32)       18464     
+	 ranspose)                                                       
+                                                                 
+	 conv2d_2 (Conv2D)           (None, 28, 28, 1)         289       
+                                                                 
+	=================================================================
+	Total params: 65,089
+	Trainable params: 65,089
+	Non-trainable params: 0
+	_________________________________________________________________
+
+	'''
+
+4. 사용자 정의 train_step() 메서드를 사용하는 VAE 모델
+---
+
+	'''
+
+	class VAE(keras.Model):
+	    def __init__(self, encoder, decoder, **kwargs):
+	        super().__init__(**kwargs)
+	        self.encoder = encoder
+	        self.decoder = decoder
+	        self.sampler = Sampler()
+	        self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
+	        self.reconstruction_loss_tracker = keras.metrics.Mean(
+	            name="reconstruction_loss")
+	        self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
+
+	    @property
+	    def metrics(self):
+	        return [self.total_loss_tracker,
+                self.reconstruction_loss_tracker,
+	                self.kl_loss_tracker]
+
+	    def train_step(self, data):
+	        with tf.GradientTape() as tape:
+	            z_mean, z_log_var = self.encoder(data)
+	            z = self.sampler(z_mean, z_log_var)
+	            reconstruction = decoder(z)
+	            reconstruction_loss = tf.reduce_mean(
+	                tf.reduce_sum(
+	                    keras.losses.binary_crossentropy(data, reconstruction),
+	                    axis=(1, 2)
+	                )
+	            )
+	            kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+	            total_loss = reconstruction_loss + tf.reduce_mean(kl_loss)
+	        grads = tape.gradient(total_loss, self.trainable_weights)
+	        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+	        self.total_loss_tracker.update_state(total_loss)
+	        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+	        self.kl_loss_tracker.update_state(kl_loss)
+	        return {
+	            "total_loss": self.total_loss_tracker.result(),
+	            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+	            "kl_loss": self.kl_loss_tracker.result(),
+	        }
+
+	'''
+
+		-> 자기지도 학습(입력을 타킷으로 사용)
+
+5. VAE 훈련
+---
+
+	'''
+
+	import numpy as np
+
+	(x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
+	mnist_digits = np.concatenate([x_train, x_test], axis=0)
+	mnist_digits = np.expand_dims(mnist_digits, -1).astype("float32") / 255
+
+	vae = VAE(encoder, decoder)
+	vae.compile(optimizer=keras.optimizers.Adam(), run_eagerly=True)
+	vae.fit(mnist_digits, epochs=30, batch_size=128)
+
+	'''
+
+		- 사용자 정의 층에서 손실을 관리
+			- compile() 메서드에 별도로 손실 지정 X
+			- loss=None
+			- 훈련시 타킷 데이터를 전달하지 않는다는 의미
+
+6. 잠재 공간에서 이미지 그리드를 샘플링하기
+---
+
+	'''
+
+	import matplotlib.pyplot as plt
+
+	n = 30
+	digit_size = 28
+	figure = np.zeros((digit_size * n, digit_size * n))
+
+	grid_x = np.linspace(-1, 1, n)
+	grid_y = np.linspace(-1, 1, n)[::-1]
+
+	for i, yi in enumerate(grid_y):
+	    for j, xi in enumerate(grid_x):
+	        z_sample = np.array([[xi, yi]])
+	        x_decoded = vae.decoder.predict(z_sample)
+	        digit = x_decoded[0].reshape(digit_size, digit_size)
+	        figure[
+	            i * digit_size : (i + 1) * digit_size,
+	            j * digit_size : (j + 1) * digit_size,
+	        ] = digit
+
+	plt.figure(figsize=(15, 15))
+	start_range = digit_size // 2
+	end_range = n * digit_size + start_range
+	pixel_range = np.arange(start_range, end_range, digit_size)
+	sample_range_x = np.round(grid_x, 1)
+	sample_range_y = np.round(grid_y, 1)
+	plt.xticks(pixel_range, sample_range_x)
+	plt.yticks(pixel_range, sample_range_y)
+	plt.xlabel("z[0]")
+	plt.ylabel("z[1]")
+	plt.axis("off")
+	plt.imshow(figure, cmap="Greys_r")
+	plt.show()
+
+	'''
+
+![Alt text](./j.png)
+
+	- 잠재 공간의 한 경로를 따라서 한 숫자가 다른 숫자로 자연스럽게 바뀜
+	- 이 공간의 특정 방향은 어떤 의미를 가짐
+		-  ‘6으로 가는 방향’, ‘9로 가는 방향’ 등등
+
+---
+
+## 생성적 적대 신경망 소개
+
+---
