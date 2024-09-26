@@ -1663,3 +1663,453 @@ VAE 모델 구성
 ## 생성적 적대 신경망 소개
 
 ---
+
+생성적 적대 신경망(GAN)
+
+	VAE와 다른 방법으로 이미지의 잠재 공간 학습
+
+		-> 생성된 이미지가 실제 이미지와 통계적으로 거의 구분되지 않도록 강제
+
+			-> 아주 실제 같은 합성 이미지 생성
+
+직관적으로 이해하는 방법
+
+	가짜 피카소 그림을 만드는 위조범
+
+		-> 시간이 지남에 따라 피카소의 스타일을 모방하는데 점점 더 능숙해짐
+
+		-> 판매상은 위조품을 구분하는 데 더 전문가 됨
+
+			∴ 아주 훌륭한 피카소 위조품 탄생
+
+GAN 모델의 구성
+
+	- 생성자 네트워크
+		- 랜덤 벡터(잠재 공간의 무작위한 포인트)를 입력으로 받아 합성된 이미지로 디코딩
+		- 판별자 네트워크를 속이도록 훈련
+			- 훈련이 계속 될수록 점점 더 실제와 같은 이미지 생성
+	- 판별자 네트워크
+		- (실제 / 합성)이미지를 입력으로 받아 실제 이미지인지, 합성 이미지인지 판별
+		- 판별하는 기준을 높게 설정해 생성자의 능력 향상에 적응
+
+![Alt text](https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FqNxAM%2Fbtr1XQnED7G%2Ftz9uWUHxRICAoFMsiuwaaK%2Fimg.png)
+
+GAN 모델의 잠재 공간
+
+	의미 있는 구조를 보장 X
+
+		-> 연속적 X
+
+최적화 과정
+
+	두 힘 간의 평형점을 찾는 다이나믹 시스템
+
+		-> 훈련하기 어렵기로 유명
+
+![Alt text](https://cdn.aitimes.com/news/photo/202010/132975_130374_564.png)
+
+---
+
+### GAN 구현 방법
+
+---
+
+구현할 모델
+
+	심층 합성곱 GAN 모델
+
+얼굴 데이터
+
+	CelebA 데이터셋
+
+		-> 64*64 크기로 변경해 사용
+
+구현 과정
+
+	1. generator 네트워크
+		- (latent_dim,) 크기의 벡터를 (32, 32, 3) 크기의 이미지로 매핑
+	2. discriminator 네트워크
+		- (32, 32, 3) 크기의 이미지가 진짜일 확률을 추정해 이진 값으로 매핑
+	3. 생성자와 판별자를 연결하는 gan 네트워크 생성
+		-  gan(x) = discriminator(generator(x))
+		-  잠재 공간의 벡터를 판별자의 평가로 매핑
+			- 즉 판별자는 생성자가 잠재 공간의 벡터를 디코딩한 것이 얼마나 현실적인지 평가
+	4. “진짜”/”가짜” 레이블과 함께 진짜 이미지와 가짜 이미지 샘플을 사용하여 판별자를 훈련
+		- 일반적인 이미지 분류 모델 훈련과 동일
+	5. 생성자를 훈련하려면 gan 모델의 손실에 대한 생성자 가중치의 그래디언트를 사용
+		- 판별자가 "진짜"로 분류하도록 만드는 방향으로 가중치 업데이트
+			- 판별자를 속이도록 생성자 훈련
+
+---
+
+### 훈련 방법
+
+---
+
+알아야 할 몇 가지 유용한 기법
+
+	경험을 통해 발견된 것을 명심
+
+	- 특성 맵을 다운샘플링하는 데 스트라이드 사용
+	- 균등 분포가 아니라 정규 분포(가우스 분포)를 사용해 잠재 공간에서 포인트 샘플링
+	- 판별자 레이블에 랜덤 노이즈 추가(무작위성 주입)
+	- 희소한 그레이디언트 방지
+		- 최대 풀링 -> 스트라이드 합성곱 사용
+		- relu 활성화 -> LeakReLU 층 사용
+			- 음수의 활성화 값을 조금 허용하기에 희소성이 다소 완화
+
+	- 생성된 이미지에서 체스판 모양 나타남
+		- 스트라이드 Conv2DTranspose나 Conv2D를 사용 -> 스트라이드 크기로 나누어질 수 있는 커널 크기 사용
+
+---
+
+### CelebA 데이터셋 준비
+
+---
+
+CelebA 데이터 다운로드
+
+	로컬에서 실행하는 경우 pip install gdown 명령으로 gdown 패키지를 먼저 설치
+
+	'''
+
+	!mkdir celeba_gan
+	!wget "https://drive.google.com/uc?id=1up5bN8LCE2vHigVY-Z9yY2_aKRW5jN_9&confirm=t" -O celeba_gan/data.zip
+	!unzip -qq celeba_gan/data.zip -d celeba_gan
+
+	'''
+	
+이미지 디렉토리에서 데이터셋 생성
+
+	'''
+
+	from tensorflow import keras
+	dataset = keras.utils.image_dataset_from_directory(
+	    "celeba_gan",
+	    label_mode=None,
+	    image_size=(64, 64),
+	    batch_size=32,
+	    smart_resize=True)
+
+	'''
+
+픽셀 값 범위 바꾸기
+
+	'''
+
+	dataset = dataset.map(lambda x: x / 255.)
+
+	'''
+
+첫 번째 이미지 출력
+
+	'''
+
+	import matplotlib.pyplot as plt
+	for x in dataset:
+	    plt.axis("off")
+	    plt.imshow((x.numpy() * 255).astype("int32")[0])
+	    break
+
+	'''
+
+![Alt text](./k.png)
+
+---
+
+### 판별자
+
+---
+
+생성된 이미지 또는 훈련 이미지중 하나로 분류
+
+	discriminator 모델 
+
+많이 발생하는 문제 중 하나
+
+	생성자가 노이즈 같은 이미지를 생겅하는 데에서 멈추는 것
+
+해결 방법
+
+	판별자에 드롯아웃 사용
+
+GAN 판별자 네트워크
+
+	'''
+
+	from tensorflow.keras import layers
+
+	discriminator = keras.Sequential(
+	    [
+	        keras.Input(shape=(64, 64, 3)),
+	        layers.Conv2D(64, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Conv2D(128, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Conv2D(128, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Flatten(),
+	        layers.Dropout(0.2),
+	        layers.Dense(1, activation="sigmoid"),
+	    ],
+	    name="discriminator",
+	)
+
+	discriminator.summary()
+
+	'''
+
+	결과:
+
+	'''
+
+	Model: "discriminator"
+	_________________________________________________________________
+	 Layer (type)                Output Shape              Param #   
+	=================================================================
+	 conv2d (Conv2D)             (None, 32, 32, 64)        3136      
+                                                                 
+	 leaky_re_lu (LeakyReLU)     (None, 32, 32, 64)        0         
+                                                                 
+	 conv2d_1 (Conv2D)           (None, 16, 16, 128)       131200    
+                                                                 
+	 leaky_re_lu_1 (LeakyReLU)   (None, 16, 16, 128)       0         
+                                                                 
+	 conv2d_2 (Conv2D)           (None, 8, 8, 128)         262272    
+                                                                 
+	 leaky_re_lu_2 (LeakyReLU)   (None, 8, 8, 128)         0         
+                                                                 
+	 flatten (Flatten)           (None, 8192)              0         
+                                                                 
+	 dropout (Dropout)           (None, 8192)              0         
+                                                                 
+	 dense (Dense)               (None, 1)                 8193      
+                                                                 
+	=================================================================
+	Total params: 404,801
+	Trainable params: 404,801
+	Non-trainable params: 0
+	_________________________________________________________________
+
+	'''
+
+---
+
+### 생성자
+
+---
+
+잠재 공간에서 무작위로 샘플링된 벡터를 후보 이미지로 변환
+
+	generator 모델
+
+GAN 생성자 네트워크
+
+	'''
+
+	latent_dim = 128
+
+	generator = keras.Sequential(
+	    [
+	        keras.Input(shape=(latent_dim,)),
+	        layers.Dense(8 * 8 * 128),
+	        layers.Reshape((8, 8, 128)),
+	        layers.Conv2DTranspose(128, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Conv2DTranspose(256, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Conv2DTranspose(512, kernel_size=4, strides=2, padding="same"),
+	        layers.LeakyReLU(alpha=0.2),
+	        layers.Conv2D(3, kernel_size=5, padding="same", activation="sigmoid"),
+	    ],
+	    name="generator",
+	)
+
+	generator.summary()
+
+	'''
+
+	결과:
+
+	'''
+
+	Model: "generator"
+	_________________________________________________________________
+	 Layer (type)                Output Shape              Param #   
+	=================================================================
+	 dense_1 (Dense)             (None, 8192)              1056768   
+                                                                 
+	 reshape (Reshape)           (None, 8, 8, 128)         0         
+                                                                 
+	 conv2d_transpose (Conv2DTra  (None, 16, 16, 128)      262272    
+	 nspose)                                                         
+                                                                 
+	 leaky_re_lu_3 (LeakyReLU)   (None, 16, 16, 128)       0         
+                                                                 
+	 conv2d_transpose_1 (Conv2DT  (None, 32, 32, 256)      524544    
+	 ranspose)                                                       
+                                                                 
+	 leaky_re_lu_4 (LeakyReLU)   (None, 32, 32, 256)       0         
+                                                                 
+	 conv2d_transpose_2 (Conv2DT  (None, 64, 64, 512)      2097664   
+	 ranspose)                                                       
+                                                                 
+	 leaky_re_lu_5 (LeakyReLU)   (None, 64, 64, 512)       0         
+                                                                 
+	 conv2d_3 (Conv2D)           (None, 64, 64, 3)         38403     
+                                                                 
+	=================================================================
+	Total params: 3,979,651
+	Trainable params: 3,979,651
+	Non-trainable params: 0
+	_________________________________________________________________
+
+	'''
+
+---
+
+### 적대 네트워크
+
+---
+
+생성자 판변자 연결
+
+	GAN 모델 구성
+
+학습 방향
+
+	판별자가 가짜 이미지를 보았을때 진짜라고 예측하도록 생성자의 가중치 업데이트
+
+훈련 반복의 내용
+
+	1. 잠재 공간에서 무작위로 포인트를 뽑음(랜덤 노이즈)
+	2. 이 랜덤 노이즈를 사용해 generator에서 이미지를 생성
+	3. 생성된 이미지와 진짜 이미지를 섞음
+	4. 진짜와 가짜가 섞인 이미지와 이에 대응하는 타깃을 사용해 discriminator를 훈련
+		- 타깃은 “진짜”(실제 이미지일 경우) 또는 “가짜”(생성된 이미지일 경우)
+	5. 잠재 공간에서 무작위로 새로운 포인트를 뽑음
+	6. 이 랜덤 벡터를 사용해 gan을 훈련
+		- 모든 타깃은 “진짜”로 설정
+		- 판별자가 생성된 이미지를 모두 “진짜 이미지”라고 예측하도록 생성자의 가중치를 업데이트
+		- 결국 생성자는 판별자를 속이도록 훈련
+
+GAN 모델 구현
+
+	- Model 클래스 서브클래싱
+	- 사용자 정의 train_step() 메서드 정의
+	- 2개의 옵티마이저 사용하기에 compile() 메서드를 오버라이드
+
+	'''
+
+	import tensorflow as tf
+	class GAN(keras.Model):
+	    def __init__(self, discriminator, generator, latent_dim):
+	        super().__init__()
+	        self.discriminator = discriminator
+	        self.generator = generator
+	        self.latent_dim = latent_dim
+	        self.d_loss_metric = keras.metrics.Mean(name="d_loss")
+	        self.g_loss_metric = keras.metrics.Mean(name="g_loss")
+
+	    def compile(self, d_optimizer, g_optimizer, loss_fn):
+	        super(GAN, self).compile()
+	        self.d_optimizer = d_optimizer
+	        self.g_optimizer = g_optimizer
+	        self.loss_fn = loss_fn
+
+	    @property
+	    def metrics(self):
+	        return [self.d_loss_metric, self.g_loss_metric]
+
+	    def train_step(self, real_images):
+	        batch_size = tf.shape(real_images)[0]
+	        random_latent_vectors = tf.random.normal(
+	            shape=(batch_size, self.latent_dim))
+	        generated_images = self.generator(random_latent_vectors)
+	        combined_images = tf.concat([generated_images, real_images], axis=0)
+	        labels = tf.concat(
+	            [tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))],
+	            axis=0
+	        )
+	        labels += 0.05 * tf.random.uniform(tf.shape(labels))
+
+	        with tf.GradientTape() as tape:
+	            predictions = self.discriminator(combined_images)
+	            d_loss = self.loss_fn(labels, predictions)
+	        grads = tape.gradient(d_loss, self.discriminator.trainable_weights)
+	        self.d_optimizer.apply_gradients(
+	            zip(grads, self.discriminator.trainable_weights)
+	        )
+
+	        random_latent_vectors = tf.random.normal(
+	            shape=(batch_size, self.latent_dim))
+
+	        misleading_labels = tf.zeros((batch_size, 1))
+
+	        with tf.GradientTape() as tape:
+	            predictions = self.discriminator(
+	                self.generator(random_latent_vectors))
+	            g_loss = self.loss_fn(misleading_labels, predictions)
+	        grads = tape.gradient(g_loss, self.generator.trainable_weights)
+	        self.g_optimizer.apply_gradients(
+	            zip(grads, self.generator.trainable_weights))
+
+	        self.d_loss_metric.update_state(d_loss)
+	        self.g_loss_metric.update_state(g_loss)
+	        return {"d_loss": self.d_loss_metric.result(),
+	                "g_loss": self.g_loss_metric.result()}
+
+	'''
+
+에포크가 끝날 때마다 가짜 이미지 생생 및 저장
+
+	
+
+	'''
+
+	class GANMonitor(keras.callbacks.Callback):
+	    def __init__(self, num_img=3, latent_dim=128):
+	        self.num_img = num_img
+	        self.latent_dim = latent_dim
+
+	    def on_epoch_end(self, epoch, logs=None):
+	        random_latent_vectors = tf.random.normal(shape=(self.num_img, self.latent_dim))
+	        generated_images = self.model.generator(random_latent_vectors)
+	        generated_images *= 255
+	        generated_images.numpy()
+	        for i in range(self.num_img):
+	            img = keras.utils.array_to_img(generated_images[i])
+	            img.save(f"generated_img_{epoch:03d}_{i}.png")
+
+	'''
+
+GAN 모델 컴파일, 훈련
+
+	'''
+
+	epochs = 100
+
+	gan = GAN(discriminator=discriminator, generator=generator, latent_dim=latent_dim)
+	gan.compile(
+	    d_optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+	    g_optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+	    loss_fn=keras.losses.BinaryCrossentropy(),
+	)
+
+	gan.fit(
+	    dataset, epochs=epochs, callbacks=[GANMonitor(num_img=10, latent_dim=latent_dim)]
+	)
+
+	'''
+
+문제 발생
+
+	- 훈련시 적대적 손실이 크게 증가
+	- 판별자의 손실은 0으로 향함
+
+		∴ 판별자가 생성자를 압도
+
+해결 방법
+
+	- 판별자의 학습률을 낮춤
+	- 판별자의 드롭아웃 비율을 높임
