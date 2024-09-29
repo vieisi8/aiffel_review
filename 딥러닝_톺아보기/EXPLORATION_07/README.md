@@ -1161,7 +1161,7 @@ tf.data.Dataset API???
 
 		-> 모델학습 초기에 learning rate를 급격히 높였다가, 이후 train step이 진행됨에 따라 서서히 낮추어 가면서 안정적으로 수렴하게 하는 고급 기법
 
-	![image](./d.png)
+![image](./d.png)
 
 		-> 커스텀 학습률 스케줄러를 통한 아담 옵티마이저 사용
 
