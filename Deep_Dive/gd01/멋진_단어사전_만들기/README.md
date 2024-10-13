@@ -206,3 +206,152 @@
 	'''
 
 ![image](./c.png)
+
+---
+
+## 공백 기반 토큰화
+
+---
+
+tokenize() 함수 정의
+
+	'''
+
+	def tokenize(corpus):  # corpus: Tokenized Sentence's List
+	    tokenizer = tf.keras.preprocessing.text.Tokenizer(filters='')
+	    tokenizer.fit_on_texts(corpus)
+
+	    tensor = tokenizer.texts_to_sequences(corpus)
+
+	    tensor = tf.keras.preprocessing.sequence.pad_sequences(tensor, padding='post')
+
+	    return tensor, tokenizer
+
+	'''
+
+토큰화 진행
+
+	'''
+
+	# 정제된 데이터 filtered_corpus를 공백 기반으로 토큰화하여 저장하는 코드를 직접 작성해 보세요.
+	split_corpus = []
+
+	for kor in filtered_corpus:
+	    split_corpus.append(kor.split())
+
+	'''
+
+단어 사전의 길이 확인
+
+	'''
+
+	split_tensor, split_tokenizer = tokenize(split_corpus)
+
+	print("Split Vocab Size:", len(split_tokenizer.index_word))
+
+	'''
+
+	결과: Split Vocab Size: 237435
+
+생성된 단어 사전 확인
+
+	'''
+
+	for idx, word in enumerate(split_tokenizer.word_index):
+	    print(idx, ":", word)
+
+	    if idx > 10: break
+
+	'''
+
+	결과:   0 : 이
+		1 : 밝혔다.
+		2 : 있다.
+		3 : 말했다.
+		4 : 수
+		5 : 있는
+		6 : 그는
+		7 : 대한
+		8 : 위해
+		9 : 전했다.
+		10 : 지난
+		11 : 이번
+
+---
+
+## 형태소 기반 토큰화
+
+---
+
+사용할 한국어 형태소 분석기
+
+	KoNLPy의 MeCab
+
+형태소 분석
+
+	'''
+
+	def mecab_split(sentence):
+	    return mecab.morphs(sentence)
+
+	mecab_corpus = []
+
+	for kor in filtered_corpus:
+	    mecab_corpus.append(mecab_split(kor))
+
+	'''
+
+토큰화 진행
+
+	'''
+
+	mecab_tensor, mecab_tokenizer = tokenize(mecab_corpus)
+
+	print("MeCab Vocab Size:", len(mecab_tokenizer.index_word))
+
+	'''
+
+	결과: MeCab Vocab Size: 52279
+
+Q. 정교한 형태소분석기를 활용한 모델의 성능이 더 좋을 수 있음에도 불구하고 현장에서 SentencePiece 같은 Subword 기반 토크나이저가 더욱 각광받는 이유?
+
+	A.  코퍼스데이터로부터 쉽게 추출해서 생성 가능
+		-> Subword 기반이기 때문에 새롭게 생성되는 단어에 대한 OOV(Out-of-Vocabulary) 문제에 대해서도 robust하게 대처 가능
+	    
+	    언어에 중립적이기 때문에 여러 언어가 섞여 나오는 텍스트를 처리하는 데에도 능함
+
+	    특정 언어에 대한 부가지식이 없이도 엔지니어가 그 언어에 대한 작업을 손쉽게 진행할 수 있도록 해준다는 점
+
+	    그 언어에 특화된 토크나이저의 성능에 뒤지지 않거나 대체로 능가하는 성능을 보여줌
+
+Encoding -> Decoding
+
+	- tokenizer.sequences_to_texts() 함수 사용
+	- tokenizer.index_word 사용
+
+1. tokenizer.sequences_to_texts()
+
+	'''
+
+	texts = mecab_tokenizer.sequences_to_texts([mecab_tensor[100]])
+	print(texts[0])
+
+	'''
+
+	결과: 수사관 들 은 건물 내 에 아홉 시간 동안 머물렀 다 .
+
+2. tokenizer.index_word
+
+	'''
+
+	sentence = ""
+
+	for w in mecab_tensor[100]:
+	    if w == 0: continue
+	    sentence += mecab_tokenizer.index_word[w] + " "
+
+	print(sentence)
+
+	'''
+
+	결과: 수사관 들 은 건물 내 에 아홉 시간 동안 머물렀 다 . 
