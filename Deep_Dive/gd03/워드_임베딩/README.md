@@ -471,7 +471,7 @@ Skip-gram의 학습 과정의 문제점
 
 	예문 : Thou shalt not make a machine in the likeness of a human mind, 윈도우 크기가 2
 
-	1. 데이터셋 생성
+1. 데이터셋 생성
 
 ![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_31.max-800x600.png)
 
@@ -479,13 +479,13 @@ Skip-gram의 학습 과정의 문제점
 
 		-> input word == 중심 단어, target word == 주변 단어
 
-	2. 새롭게 레이블 생성
+2. 새롭게 레이블 생성
 
 ![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_32.max-800x600.png)
 
 	-> 슬라이딩 윈도우를 통해서 만들어진 정상적인 데이터셋 == 1
 
-	3. 거짓 데이터셋 생성
+3. 거짓 데이터셋 생성
 
 ![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_33.max-800x600.png)
 
@@ -495,7 +495,7 @@ Skip-gram의 학습 과정의 문제점
 
 			-> 거짓(negative) 데이터셋을 만들기 때문에 이 방법이 네거티브 샘플링라고 불림
 
-	4. 이진 분류 문제로 학습
+4. 이진 분류 문제로 학습
 
 ![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_34.max-800x600.png)
 
@@ -506,3 +506,295 @@ Skip-gram의 학습 과정의 문제점
 네거티브 샘플링의 장점
 
 	- 상당량의 연산량을 줄일 수 있음
+
+---
+
+## Word2Vec (4) 영어 Word2Vec 실습과 OOV 문제
+
+---
+
+영어 데이터로 직접 Word2Vec 훈련
+
+	파이썬의 gensim 패키지를 통해 Word2Vec 모델 사용 가능
+
+사용할 데이터 
+
+	-> NLTK에서 제공하는 코퍼스
+
+gensim 패키지?
+
+	-> 토픽 모델링을 위한 NLP 패키지
+
+- NLTK 코퍼스 다운
+
+	'''
+
+	import nltk
+	nltk.download('abc')
+	nltk.download('punkt')
+
+	'''
+
+- 코퍼스 저장
+
+	'''
+
+	from nltk.corpus import abc
+	corpus = abc.sents()
+
+	'''
+
+- 모델 학습
+
+	'''
+
+	from gensim.models import Word2Vec
+
+	model = Word2Vec(sentences = corpus, vector_size = 100, window = 5, min_count = 5, workers = 4, sg = 0)
+
+	'''
+
+	각 파라미터가 의미하는 바
+
+	- vector size = 학습 후 임베딩 벡터의 차원
+	- window = 컨텍스트 윈도우 크기
+	- min_count = 단어 최소 빈도수 제한 (빈도가 적은 단어들은 학습 X)
+	- workers = 학습을 위한 프로세스 수
+	- sg = 0은 CBoW, 1은 Skip-gram.
+
+- 코사인 유사도가 높은 단어들 출력
+
+	'''
+
+	model_result = model.wv.most_similar("man")
+	print(model_result)
+
+	'''
+
+	결과: [('woman', 0.9233373999595642), ('skull', 0.911032497882843), ('Bang', 0.9056490063667297), ('asteroid', 0.9051957130432129), ('third', 0.9020178318023682), ('baby', 0.8993921279907227), ('dog', 0.8985978364944458), ('bought', 0.8975234031677246), ('rally', 0.8912491798400879), ('disc', 0.8888981342315674)]
+
+- 모델 저장
+
+	'''
+
+	from gensim.models import KeyedVectors
+
+	model.wv.save_word2vec_format('~/aiffel/word_embedding/w2v') 
+
+	'''
+
+- 모델 load
+
+	'''
+
+	loaded_model = KeyedVectors.load_word2vec_format("~/aiffel/word_embedding/w2v")
+
+	'''
+
+Word2Vec의 OOV 문제
+
+	사전에 없는 단어에 대해서 Word2Vec은 임베딩 벡터값을 얻을 수 없음
+
+---
+
+## 임베딩 벡터의 시각화
+
+---
+
+임베딩 벡터 시각화
+
+	임베딩 프로젝터(embedding projector) 사용
+
+		-> 구글이 공개한 임베딩 벡터의 시각화 오픈소스
+
+			-> 어떤 임베딩 벡터들이 가까운 거리에 군집이 되어 있고, 특정 임베딩 벡터와 유클리드 거리나 코사인 유사도가 높은지 확인
+
+1. 필요한 파일 생성
+
+	벡터값이 저장된 파일, 메타파일
+
+	python -m gensim.scripts.word2vec2tensor --input 경로 --output 경로
+
+		-> 위 커맨드를 통해 벡터값이 저장된 파일, 메타파일 생성
+
+2. 임베딩 프로젝터 사용
+
+	[Embedding Projector](https://projector.tensorflow.org/)
+
+		-> 위 사이트에 생성된 파일 업로드
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_37.max-800x600.png)
+
+	-> 워드 임베딩 모델 시각화
+
+---
+
+## FastText
+
+---
+
+FastText??
+
+	메커니즘 자체는 Word2Vec을 그대로 따르고 있음
+
+		-> 문자 단위 n-gram(character-level n-gram) 표현을 학습
+
+Word2Vec의 차이점
+
+	- Word2Vec
+		- 더 이상 깨질 수 없는 단위로 구분
+	- FastText
+		- 단어 내부의 내부 단어(subwords)들을 학습한다는 아이디어
+
+FastText의 n-gram에서의 n
+
+	- 단어들이 얼마나 분리되는지 결정하는 하이퍼파라미터
+
+	 ex) n=3 
+
+		<pa, par, art, rti, tia, ial, al>, <partial>
+
+	- n의 최솟값과 최댓값으로 범위 설정 가능
+
+		-> 기본값으로 각각 3과 6으로 설정
+
+	 ex) n = 3 ~ 6
+
+		<pa, par, art, rti, ita, ial, al>, <par, arti, rtia, tial, ial>, <part, ...중략... , <partial>
+
+	    -> 저 단어들 각각에 대해서 Word2Vec을 수행
+
+	- 최종 단어
+
+	 ex) partial = <pa + par + art + rti + ita + ial + al> + <par + arti + rtia + tial + ial> + <part + ...중략...  + <partial>
+
+FastText의 학습 방법
+
+	Word2Vec과 마찬가지로 네거티브 샘플링 사용
+
+	Word2Vec과 다른 점
+
+		-> 학습 과정에서 중심 단어에 속한 문자 단위 n-gram 단어 벡터들을 모두 업데이트
+
+OOV와 오타에 대한 대응
+
+	Word2Vec과 달리 OOV와 오타에 강건하다는 특징
+
+		-> 단어장에 없는 단어라도, 해당 단어의 n-gram이 다른 단어에 존재하면 이로부터 벡터값을 얻는다는 원리
+
+한국어에서의 FastText
+
+	자소 단위로 분리
+
+		-> 초성, 중성, 종성을 분리한다고 하고, 종성이 존재하지 않는 경우에는 _라는 토큰을 대신
+
+	 ex) 텐서플로우
+
+		 <ㅌㅔ,ㅌㅔㄴ,ㅔㄴㅅ,ㄴㅅㅓ,ㅅㅓ_, ...중략... >
+
+---
+
+## GloVe
+
+---
+
+글로브(Global Vectors for Word Representation, GloVe)??
+
+	2014년에 미국 스탠포드 대학에서 개발한 워드 임베딩 방법론
+
+GloVe의 특징
+
+	워드 임베딩의 두 가지 접근 방법 사용
+
+	- 카운트 기반
+	- 예측 기반
+
+카운트 기반 방법?
+
+	LSA(Latent Semantic Analysis)
+
+		->  DTM을 차원 축소하여 밀집 표현(dense representation)으로 임베딩 하는 방법
+
+잠재 의미 분석(LSA, Latent Semantic Analysis)??
+
+	DTM에 특잇값 분해를 사용하여 잠재된 의미를 이끌어내는 방법론
+
+LSA의 한계점
+
+	- 차원 축소의 특성으로 인해 새로운 단어가 추가되면 다시 DTM을 만들어 새로 차원 축소해야 함
+	- 단어 벡터간 유사도를 계산하는 측면에서 Word2Vec보다 성능이 떨어짐
+
+예측 기반의 방법??
+
+	Word2Vec과 같은 방법
+
+		-> 인공 신경망이 예측한 값으로부터 실제 레이블과의 오차를 구하고, 손실 함수를 통해서 인공 신경망을 학습하는 방식
+
+GloVe의 성능 지표
+
+	Word2Vec보다 반드시 뛰어나다고 장담하기는 어렵고, Word2Vec에 거의 준하는 성능을 보여준다고 평가
+
+윈도우 기반 동시 등장 행렬(Window based Co-occurrence Matrix)
+
+	corpus
+
+		- I like deep learning.
+		- I like NLP.
+		- I enjoy flying.
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Cap_2020-03-12_20-48-35-686.max-800x600.png)
+
+	행과 열을 전체 단어장(vocabulary)의 단어들로 구성하고, 어떤 i 단어의 윈도우 크기(window Size) 내에서 k 단어가 등장한 횟수를 i행 k열에 기재한 행렬
+
+		-> 전치(transpose)해도 동일한 행렬이 된다는 특징
+
+동시 등장 확률(Co-occurrence Probability)
+
+	동시 등장 확률 P(k|i)
+
+		-> 동시 등장 행렬로부터 특정 단어 i의 전체 등장 횟수를 카운트하고, 특정 단어 i가 등장했을 때 어떤 단어 k가 등장한 횟수를 카운트하여 계산한 조건부 확률
+
+			i -> 중심 단어(center word)
+			k -> 주변 단어(context word)
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_38.max-800x600.png)
+
+GloVe의 손실 함수 설계
+
+	동시 등장 확률을 이용해 손실 함수를 설계
+
+		-> 동시 등장 행렬을 사용하고 있으니 코퍼스의 전체적인 통계 정보를 활용하는 '카운트 기반'의 방법론, 손실 함수를 통해 모델을 학습시키므로 '예측 기반'의 방법론
+
+GloVe의 아이디어
+
+	중심 단어 벡터와 주변 단어 벡터의 내적이 전체 코퍼스에서의 동시 등장 빈도의 로그값이 되도록 만드는 것
+
+		-> 전체 코퍼스에서의 동시 등장 빈도의 로그값과 중심 단어 벡터와 주변 단어 벡터의 내적값의 차이가 최소화되도록 두 벡터의 값을 학습하는 것
+
+GloVe의 변수
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/Untitled_39.png)
+
+GloVe의 손실 함수
+
+![image](./a.png)
+
+	-> 중심 단어와 주변 단어 벡터의 내적이 동시 등장 빈도의 로그값과의 차이를 줄이도록 설계
+
+	동시 등장 빈도의 값 f(Xik)이 굉장히 낮은 경우에는 거의 도움이 되지 않는 정보라고 판단
+
+		-> f(Xik)의 값에 영향을 받는 가중치 함수(Weighting function)를 도입
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/Untitled_41.png)
+
+	함수의 최댓값이 1로 정해져 있음
+
+		-> 'It is'와 같은 불용어의 동시 등장 빈도수가 높을 때 지나친 가중을 주지 않기 위함
+
+GloVe의 한계점
+
+	- OOV 문제
+	
+	pre-trained GloVe 모델
+
+		-> 알파벳 소문자만 인식한다는 문제
