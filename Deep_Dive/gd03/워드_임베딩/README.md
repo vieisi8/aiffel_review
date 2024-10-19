@@ -282,3 +282,227 @@ TF(Term Frequency)?
 ## Word2Vec (1) 분포 가설
 
 ---
+
+Word2Vec
+
+	단어를 벡터로 표현하는 방법의 일종
+
+		-> 저차원으로 이루어져 있고, 단어의 의미를 여러 차원에 분산하여 표현한 벡터
+
+Word2Vec의 핵심 아이디어
+
+	분포 가설(distributional hypothesis)을 따름
+
+분포 가설?
+
+	비슷한 문맥에서 같이 등장하는 경향이 있는 단어들은 비슷한 의미를 가짐
+
+		-> 같이 등장하는 경향이 적은 단어들에 비해 '강아지', '애교, '귀여운'과 같은 단어들을 상대적으로 유사도가 높은 벡터로 생성
+
+---
+
+## Word2Vec (2) CBoW
+
+---
+
+Word2Vec의 두가지 방법
+
+	- CBoW
+		- 주변에 있는 단어들을 통해 중간에 있는 단어들을 예측하는 방법
+	- Skip-gram
+		- 중간에 있는 단어로 주변 단어들을 예측하는 방법
+
+CBoW(Continuous Bag of words)
+
+- ex) "I like natural language processing."
+
+	-> 중간에 있는 단어를 예측하는 방법이므로  {"i", "like", "language", "processing"}으로부터 "natural"을 예측하는 것
+
+	- 중심 단어(center word)
+		- 예측해야 하는 단어 "natural"
+	- 주변 단어(context word)
+		- 예측에 사용되는 단어들
+	- 윈도우(window)
+		- 중심 단어를 예측하기 위해 앞, 뒤로 몇 개의 단어를 볼지
+		- 윈도우 크기가 m일 때, 중심 단어를 예측하기 위해 참고하는 주변 단어의 개수는 2m
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/Untitled_23.png)
+
+	- 슬라이딩 윈도우(sliding window)
+		- 윈도우를 계속 움직여서 주변 단어와 중심 단어를 바꿔가며 학습을 위한 데이터 셋 생성
+
+	 ex) 윈도우 크기 = 1 / ((주변 단어의 셋), 중심 단어)
+	    ((like), I), ((I, natural), like), ((like, language), natural), ((natural, processing), language), ((language), processing)  
+
+	- 선택된 데이터셋  
+		- 원-핫 벡터화 되어 CBoW나 Skip-gram의 입력이 됨
+
+CBoW의 동작 메커니즘
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_24.max-800x600.png)
+
+	윈도우 크기가 m이라면 2m개의 주변 단어를 이용해 1개의 중심 단어를 예측하는 과정에서 두 개의 가중치 행렬(matrix)을 학습하는 것
+
+		-> 가중치 W, W' 학습 (얕은 신경망(Shallow Neural Network) 학습)
+
+CBoW 신경망 구조
+
+	- 입력층
+		- 주변 단어 각각의 원-핫 벡터가 위치한 곳
+	- 출력층
+		- 중심 단어의 원-핫 벡터가 위치한 곳
+	- 입력층과 출력층의 크기
+		- 단어 집합의 크기인 V로 고정
+		- 원-핫 벡터로 표현
+	- 은닉층의 크기
+		- 사용자가 정의해주는 하이퍼파라미터!(N)
+
+입력층 -> 은닉층
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_25.max-800x600.png)
+
+	(주변 단어)각각의 원-핫 벡터 * 첫 번째 가중치 행렬(V × N)
+
+		-> 각 단어의 정수 인덱스 i에 해당되는 위치에만 1의 값을 가짐
+
+			-> 원-핫 벡터와 가중치 행렬과의 곱은 가중치 행렬의 i 위치에 있는 행을 그대로 가져오는 것과 동일
+
+				-> 룩업 테이블(lookup table)
+
+	∴ 2m개의 주변 단어 벡터들 
+
+		-> 각각 N의 크기를 가짐
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/cbow.png)
+
+	벡터들을 모두 합하거나, 평균을 구한 값
+
+		-> 최종 은닉층의 결과(N차원의 벡터)
+
+			-> 활성화 함수나 편향(bias)을 더하는 연산 X
+
+			-> 투사층(projection layer)이라고 불림
+
+은닉층 -> 출력층
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/Untitled_26.png)
+
+	은닉층에서 생성된 N차원의 벡터 * 두 번째 가중치 행렬(N × V)
+
+		-> 벡터의 차원은 V
+
+			-> 활성화 함수로 소프트맥스 함수를 사용
+
+				-> 모든 차원의 총합이 1이 되는 벡터로 변경
+
+학습 목표
+
+	출력층의 벡터를 중심 단어의 원-핫 벡터와의 손실(loss)을 최소화
+
+		-> 첫 번째 가중치 행렬 W, 두 번째 가중치 행렬 W' 업데이트
+
+			-> W의 행, W'의 열 중 어떤 것을 임베딩 벡터로 사용할지를 결정
+
+			-> W와 W'의 평균치 사용 하기도 함
+
+CBoW의 문제점
+
+	Out-of-vocabulary(단어 집합에 없는 단어), Polysemy(다의어), 문맥 파악의 한계 등등
+
+---
+
+## Word2Vec (3) Skip-gram과 Negative Sampling
+
+---
+
+Skip-gram
+
+	중심 단어로부터 주변 단어를 예측
+
+Skip-gram의 데이터셋
+
+	(중심 단어, 주변 단어)
+
+	-> (i, like) (like, I), (like, natural), (natural, like), (natural, language), (language, natural), (language, processing), (processing, language)
+
+Skip-gram 시각화
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_28.max-800x600.png)
+
+	-> 은닉층에서 다수의 벡터의 덧셈과 평균을 구하는 과정이 없어짐
+
+		-> CBoW와 메커니즘 자체는 동일
+
+네거티브 샘플링(negative sampling)
+
+	Word2Vec을 사용할 땐 SGNS(Skip-Gram with Negative Sampling) 사용
+
+		-> Skip-gram을 사용하면서 네거티브 샘플링(Negative Sampling) 이란 방법도 사용
+
+			-> Word2Vec의 구조는 연산량이 지나치게 많아 실제로 사용하기 어려움
+
+Skip-gram의 학습 과정의 문제점
+
+	모델 구조는 단순해 보이지만 복잡한 과정을 거침
+
+		-> 단어가 중심 단어나 주변 단어와 전혀 상관없는 단어라도 복잡한 과정을 거침
+
+			->  이 작업은 너무너무 느림!!
+
+네거티브 샘플링?
+
+	연산량을 줄이기 위해서 소프트맥스 함수를 사용한 V개 중 1개를 고르는 다중 클래스 분류 문제
+
+		-> 시그모이드 함수를 사용한 이진 분류 문제로 바꿈
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_29.max-800x600.png)
+
+	-> 기존의 skip-gram
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_30.max-800x600.png)
+
+	-> 네거티브 샘플링
+
+	중심 단어와 주변 단어를 입력값으로 받아 이 두 단어가 정말로 이웃 관계면(실제로 중심 단어와 주변 단어의 관계면) 1을 또는 0을 출력하는 문제로 바꾸는 것
+
+		-> 다중 분류 문제에서 이진 분류 문제로 변경됨
+
+네거티브 샘플링 ex
+
+	예문 : Thou shalt not make a machine in the likeness of a human mind, 윈도우 크기가 2
+
+	1. 데이터셋 생성
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_31.max-800x600.png)
+
+	-> skip-gram의 데이터셋
+
+		-> input word == 중심 단어, target word == 주변 단어
+
+	2. 새롭게 레이블 생성
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_32.max-800x600.png)
+
+	-> 슬라이딩 윈도우를 통해서 만들어진 정상적인 데이터셋 == 1
+
+	3. 거짓 데이터셋 생성
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_33.max-800x600.png)
+
+	-> 랜덤으로 단어장에 있는 아무 단어나 가져와 target word로 하는 거짓 데이터셋 생성
+
+		-> 0으로 레이블링
+
+			-> 거짓(negative) 데이터셋을 만들기 때문에 이 방법이 네거티브 샘플링라고 불림
+
+	4. 이진 분류 문제로 학습
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/Untitled_34.max-800x600.png)
+
+	-> 이진 분류 문제로 간주
+
+		-> 중심 단어와 주변 단어를 내적하고, 출력층의 시그모이드 함수를 지나게 하여 1 또는 0의 레이블로부터 오차를 구해서 역전파를 수행(학습)
+
+네거티브 샘플링의 장점
+
+	- 상당량의 연산량을 줄일 수 있음
