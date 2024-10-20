@@ -388,33 +388,33 @@ PCA를 통한 차원 축소한 시각화
 		'''
 
 2. 추출된 결과로 embedding model 생성
-
+	
 	Word2Vec 학습
 
-	'''
+		'''
 
-	from gensim.models import Word2Vec
+		from gensim.models import Word2Vec
 
-	# tokenized에 담긴 데이터를 가지고 나만의 Word2Vec을 생성합니다. (Gensim 4.0 기준)
-	model = Word2Vec(tokenized, vector_size=100, window=5, min_count=3, sg=0)  
-	model.wv.most_similar(positive=['영화'])
+		# tokenized에 담긴 데이터를 가지고 나만의 Word2Vec을 생성합니다. (Gensim 4.0 기준)
+		model = Word2Vec(tokenized, vector_size=100, window=5, min_count=3, sg=0)  
+		model.wv.most_similar(positive=['영화'])
 
-	# Gensim 3.X 에서는 아래와 같이 생성합니다. 
-	# model = Word2Vec(tokenized, size=100, window=5, min_count=3, sg=0)  
-	# model.most_similar(positive=['영화'])
+		# Gensim 3.X 에서는 아래와 같이 생성합니다. 
+		# model = Word2Vec(tokenized, size=100, window=5, min_count=3, sg=0)  
+		# model.most_similar(positive=['영화'])
 
-	'''
+		'''
 
-	결과:   [('작품', 0.9036737680435181),
-		 ('다큐멘터리', 0.8401896953582764),
-		 ('드라마', 0.8196604251861572),
-		 ('영화로', 0.8000906705856323),
-		 ('코미디', 0.7950778007507324),
-		 ('형식', 0.7902755737304688),
-		 ('감동', 0.7840465307235718),
-		 ('주제', 0.7799090147018433),
-		 ('스토리', 0.7629789113998413),
-		 ('소재', 0.759117841720581)]
+		결과:   [('작품', 0.9036737680435181),
+			 ('다큐멘터리', 0.8401896953582764),
+			 ('드라마', 0.8196604251861572),
+			 ('영화로', 0.8000906705856323),
+			 ('코미디', 0.7950778007507324),
+			 ('형식', 0.7902755737304688),
+			 ('감동', 0.7840465307235718),
+			 ('주제', 0.7799090147018433),
+			 ('스토리', 0.7629789113998413),
+			 ('소재', 0.759117841720581)]
 
 ---
 
