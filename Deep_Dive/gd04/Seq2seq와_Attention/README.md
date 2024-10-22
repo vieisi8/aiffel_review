@@ -31,7 +31,7 @@
 
 	등장한 적 없는 단어나 문장에 대해 모델링 X
 
-	[언어모델(Language Model)](https://ratsgo.github.io/from%20frequency%20to%20semantics/2017/09/16/LM/)
+	- [언어모델(Language Model)](https://ratsgo.github.io/from%20frequency%20to%20semantics/2017/09/16/LM/)
 
 신경망 언어 모델??
 
@@ -39,7 +39,7 @@
 
 		-> 지금의 Embedding 레이어의 아이디어인 모델
 
-	[피드 포워드 신경망 언어 모델(NNLM)](https://wikidocs.net/45609)
+	- [피드 포워드 신경망 언어 모델(NNLM)](https://wikidocs.net/45609)
 
 Embedding 벡터 장점
 
@@ -76,9 +76,9 @@ Sequence to Sequence(Seq2Seq)??
 
 	-> 구글이 제안한 문장 전체를 보고 나서 생성하는 구조
 
-	논문: [Sequence to Sequence Learning with Neural Networks](https://proceedings.neurips.cc/paper_files/paper/2014/file/a14ac55a4f27472c5d894ec1c3c743d2-Paper.pdf)
+	- 논문: [Sequence to Sequence Learning with Neural Networks](https://proceedings.neurips.cc/paper_files/paper/2014/file/a14ac55a4f27472c5d894ec1c3c743d2-Paper.pdf)
 
-	정리한 글: [Seq2seq (2): Sequence to Sequence Learning with Neural Networks](https://reniew.github.io/35/)
+	- 정리한 글: [Seq2seq (2): Sequence to Sequence Learning with Neural Networks](https://reniew.github.io/35/)
 
 ![image](./a.png)
 
@@ -240,8 +240,8 @@ Bahdanau Attention
 
 	ncoder의 최종 State 값만을 사용하는 기존의 방식이 아닌, 매 스텝의 Hidden State를 활용해 컨텍스트 벡터를 구축하는 Attention 메커니즘을 제안
 
-	논문: [NEURAL MACHINE TRANSLATION BY JOINTLY LEARNING TO ALIGN AND TRANSLATE0](https://arxiv.org/pdf/1409.0473)
-	정리 글: [Attention mechanism in NLP. From seq2seq + attention to BERT ](https://lovit.github.io/machine%20learning/2019/03/17/attention_in_nlp/)
+	- 논문: [NEURAL MACHINE TRANSLATION BY JOINTLY LEARNING TO ALIGN AND TRANSLATE0](https://arxiv.org/pdf/1409.0473)
+	- 정리 글: [Attention mechanism in NLP. From seq2seq + attention to BERT ](https://lovit.github.io/machine%20learning/2019/03/17/attention_in_nlp/)
 
 Attention Map?
 
@@ -294,7 +294,7 @@ attention 계산
 
 시각화 글을 소개
 
-	[어텐션 (Attention)](https://modulabs.co.kr/blog/introducing-attention/)
+	- [어텐션 (Attention)](https://modulabs.co.kr/blog/introducing-attention/)
 
 주의❗ 위 시각화 글의 1 단계
 
@@ -433,9 +433,9 @@ Luong Attention의 장점
 
 Luong Attention의 개념 정리
 
-	[[Attention] Luong Attention 개념 정리](https://hcnoh.github.io/2019-01-01-luong-attention)
+	- [[Attention] Luong Attention 개념 정리](https://hcnoh.github.io/2019-01-01-luong-attention)
 
-	논문: [Effective Approaches to Attention-based Neural Machine Translation](https://arxiv.org/pdf/1508.04025)
+	- 논문: [Effective Approaches to Attention-based Neural Machine Translation](https://arxiv.org/pdf/1508.04025)
 
 LuongAttention 구현
 
