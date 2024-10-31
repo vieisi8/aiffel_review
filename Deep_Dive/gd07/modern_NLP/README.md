@@ -1494,4 +1494,244 @@ ALBERT?
 
 ---
 
+T5?
 
+	- Transformer를 기반으로 만들어진 아키텍처로 text-to-text 방법 사용
+	- 서베이에서 얻은 인사이트를 통해 T5라는 모델을 만듦
+
+BERT와 차이점
+
+	- causal decoder를 bidirectional architecture에 추가
+	- pre-training tasks를 fill-in-the-blank cloze task로 대체
+
+fill-in-the-blank cloze task?
+
+	빈칸 채우기!!
+
+		-> Lions are the ___________________ living animal in the world.
+
+Colossal Clean Crawled Corpus(C4)?
+
+	- Wikipedia보다 2배 많은 양
+	- 중복된 데이터, 불완전한 문장, 혐오 표현이나 의미 없는 내용은 제거
+
+Shared Text-To-Text Framework
+
+	T5에서는 모든 NLP task
+
+		-> 모두 text string인 text-to-text format으로 재구성
+
+![gif](https://1.bp.blogspot.com/-o4oiOExxq1s/Xk26XPC3haI/AAAAAAAAFU8/NBlvOWB84L0PTYy9TzZBaLf6fwPGJTR0QCLcBGAsYHQ/s640/image3.gif)
+
+	-> 어떤 NLP task에서든 모델, 학습 과정, 디코딩 과정, 손실함수, 하이퍼파라미터를 동일하게 사용 가능
+
+다른 NLP 문제를 어떻게 구분할 수 있을까??
+
+	translate English to German: / mnli premise:
+
+		위 와 같은 task-specific(text) prefix를 입력 시퀀스 앞에 추가해 모델에 넣어 구분 가능
+
+denoising objectives?
+
+	corrupted token
+
+T5의 corrupted token
+
+	- 타겟을 랜덤으로 샘플링하고, 입력 시퀀스의 15%의 token을 single sentinel token(X, Y)로 대체
+		- 각 sentinel token은 어떤 wordpiece에도 대응되지 않는 특별한 토큰으로, 시퀀스에 유일한 토큰 ID로 지정되어 voca에 추가됨
+		- 연속된 단어는 하나의 sentinel token로 여겨짐
+	- 타켓 토큰은 입력에서 사용된 sentinel token과 final sentinel token(Z)
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-10-18_15-18-27.png)
+
+T5와 다른 트랜스포머 계열 모델과 다른 점 
+
+	1. 어텐션 매커니즘에 의해 사용되는 mask
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-10-18_15-32-03.png)
+
+	-> fully-visible 마스킹을 입력 시퀀스의 일부에 사용하는 causal masking with prefix라는 마스킹 방법을 사용
+
+		-> prefix 손실을 막기 위해 사용
+
+	2. Transformer 아키텍처
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-10-18_15-45-21.png)
+
+	-> 언어모델에 prefix를 추가해 입력에 fully-visible masking할 수 있도록 변경
+
+		-> encoder에는 양방향 attention, decoder(generation)에서는 단방향 attention 사용
+
+T5 모델의 2가지 새로운 task
+
+	1. Closed-Book Question Answering
+
+		어떤 외부 지식에도 접근하지 않고 사전 학습 중 얻은 파라미터에 저장된 정보만 사용해서 질문에 답하는 것
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-10-18_12-10-25.png)
+
+	2. fill-in-the blank task
+
+		빈칸 채우기
+
+			-> 빈칸에 들어갈 단어의 수가 달라지면 결과도 다르게 나옴
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-04_17-52-24.max-800x600.png)
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-04_17-52-33.max-800x600.png)
+
+T5 논문
+
+[Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer](https://arxiv.org/pdf/1910.10683v3)
+
+---
+
+## Switch Transformer
+
+---
+
+Switch Transformer?
+
+	backbone 모델로 T5을 사용하여 T5와 거의 비슷한 성능을 보임
+
+		-> T5보다 4배에서 7배까지 학습 속도가 빠른 모델
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-04_16-08-51.png)
+
+Switch Transformer의 특징
+
+	- 1조 6천억 개의 파라미터를 가졌다는 것
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-10-28_10-24-46.max-800x600.png)
+
+Switch Transformer가 많은 수의 파라미터로 인한 단점을 보완하기 위해 사용한 여러 방법
+
+1. MoE
+
+	Transformer의 FFN(Feed Forward Network) 레이어 -> MoE(Mixture of Expert) 레이어 바꿈
+
+MOE?
+
+	고양이의 일부만 보는 expert, 객체 탐지 expert, 배경 분리 expert 등의 다양한 expert를 두고, gate 또는 router라고 불리는 곳에서 각각의 입력에 대해 적합한 expert를 할당
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-18_10-52-07.png)
+
+	gate
+
+		-> 하나의 입력과 가중치를 곱해 softmax를 통과시켜, 높은 확률 순으로 적당한 expert 후보를 top K개 뽑고, top K개의 expert와 입력을 연산한 결과를 가중합하여 출력
+
+MoE의 단점
+
+	구조가 복잡하고 expert간 커뮤니케이션 비용이 높으며 학습이 불안정
+
+2. Switch Routing
+
+	MoE의 단점을 해결하기 위해 expert를 1개만 선택
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-04_15-35-17.png)
+
+	-> 성능은 기존의 MoE와 비슷함
+
+		-> router의 연산과 batch 사이즈, 그리고 routing 연산 후의 expert간 커뮤티케이션 비용이 줄어든다는 효과를 얻음
+
+3. Distributed Switch Implementation
+
+	하나의 token에 하나의 expert를 지정한다고 해도 expert의 수가 제한되어 있기 때문에 token이 많아지면 한 expert에 여러 개의 token이 몰리게 되는 현상 발생 가능성 높음
+
+		-> 하나의 expert에 배정될 token의 수를 제한
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-04_15-41-36.png)
+
+	-> capacity factor라는 것을 두어 expert가 배정받을 token 수를 제한
+
+4. Differentiable Load Balancing Loss
+
+	한 expert에 배정될 token수가 제한되었다 하더라도 일부의 expert에 token이 더 몰릴 가능성 존재
+
+		-> router에서 각 expert에 대한 확률값의 최대값이 최소화되도록 기존의 loss에 load balancing loss라는 항을 더해 줌
+
+			-> 각각의 expert에 token이 골고루 배분 가능
+
+![image](./b.png)
+
+	-> α는 0.01로 설정
+
+Selective precision
+
+	bfloat16(Brain Floating Point Format)라는 새로운 데이터타입을 창조
+
+		-> MoE 모델에서는 bfloat16을 사용하면 발산하는 문제 발생
+
+			-> router 레이어에서만 bfloat32를 사용, 그 외의 부분에서는 bfloat16을 사용
+
+bfloat16?
+
+	floating point를 16 비트로 줄인 후, 지수부가 32만큼 넓은 range를 표현할 수 있도록 하되, precision을 희생하는 부동소수점 포맷
+
+Switch Transformer 논문
+
+[SWITCH TRANSFORMERS: SCALING TO TRILLION PARAMETER MODELS WITH SIMPLE AND EFFICIENT SPARSITY](https://arxiv.org/pdf/2101.03961)
+
+---
+
+## ERNIE
+
+---
+
+PaddlePaddle?
+
+	'PArallel Distributed Deep LEarning’의 약자
+
+		-> 중국의 검색엔진 Baidu에서 만든 머신러닝 프레임워크
+
+		-> 코어 라이브러리는 C++이고, Python으로 인터페이스를 만듦
+
+ERNIE?
+
+	칭화대 버전, 바이두 버전 두가지 버전 존재
+
+바이두에서 만든 ERNIE
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/ERNIE_milestone_en.max-800x600.png)
+
+ERNIE v1
+
+	- 다양한 마스킹 전략을 통해 language representation을 향상
+		- Phrase-Level Masking과 Entity-Level Masking을 추가로 사용
+		- 구문 전체를 마스킹(Phrase-Level Masking), 고유 명사 전체를 마스킹(Entity-Level Masking)
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-16_12-36-13.max-800x600.png)
+
+ERNIE v1의 Encoder
+
+	여러 층을 쌓은 Transformer를 Encoder 사용
+
+		-> 중국어 corpus를 사용하기 때문에 CJK Unicode에 있는 모든 글자에 공간 추가, WordPiece 사용
+
+ERNIE v1 데이터셋
+
+	중국어 위키피디아, 바이두 백과, 바이두 뉴스, 레딧과 비슷한 포럼 공간인 바이두 티에바에서 가져온 다양한 데이터
+
+		-> 바이두 티에바에서는 다이얼로그 형식의 데이터를 가지고 와 DLM task에 사용
+
+DLM(Dialogue Language Model)?
+
+	대화형 데이터를 학습하기 위해 도입된 것
+
+		-> Dialogue embedding을 사용해 다이얼로그의 역할을 구분
+
+		-> 여러 번의 턴을 가지는 대화가 진짜인지, 가짜인지 판단하도록 학습
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-16_12-46-40.max-800x600.png)
+
+Dialogue embedding?
+
+	BERT의 token embedding과 같은 역할을 하지만 여러 번의 턴(turn)을 가지는 대화를 표현할 수 있도록 설계
+
+ERNIE v2
+
+	pretraining할 때 여러 task를 추가해 학습하는 방식 사용
+
+ERNIE v3
+
+	v1과 v2를 합친 모델
