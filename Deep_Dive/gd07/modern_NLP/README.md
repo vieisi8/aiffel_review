@@ -1244,3 +1244,254 @@ BERT 논문
 ## Transformer-XL(Transformer Extra Long)
 
 ---
+
+transformer-XL?
+
+	기존의 언어 모델과 트랜스포머가 가지고 있던 한계점을 개선한 모델
+
+		-> 좀 더 긴 context를 어떻게 담을 것인가에 대해 고민한 모델
+
+transformer-XL의 구조
+
+1. Vanilla Transformer LMs
+
+	- 트랜스포머는 max_seq_length가 정해져 있음
+		- 모델이 감당할 수 있을 만큼 텍스트를 잘라서 학습
+		- 이전 segment에서 학습했던 context는 무시되고, 지금 학습을 하고 있는 segment 안에서만 context를 고려
+		- segment1과 segment2는 전혀 공유하는 context가 없이 단절
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/19_RTNDWar.png)
+
+	- 테스트시 슬라이딩을 하면서 생기는 문제
+		- 일정 길이의 context를 보고 한 단어를 예측
+		- 그다음에 딱 한 개만큼만 슬라이딩하여 새로운 context를 만들고 다시 연산해 하나의 단어를 예측
+		- 이전 context를 조금씩이나마 유지할 수 있을지 모르지만 연산에 드는 비용이 급증
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/20_87zCAda.max-800x600.png)
+
+2. Segment-level recurrence with state reuse
+
+	- 위 첫번째 문제를 해결하기 위해 recurrence 메커니즘 도입
+		- 학습 시에 이전 segment에서 계산했었던 hidden state를 사용하는 것
+		- context fragmentation 해결
+		- long-term dependency 유지
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/21_35Nt3rH.max-800x600.png)
+
+	- 위 두번째 문제도 해결 가능
+		- 이미 계산한 hidden state의 정보를 메모리에 가지고 있다가 cache를 하기 때문에 계속해서 반복하여 똑같은 연산을 할 필요 X
+		- 속도도 더욱 빨라질 수 있음
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/22_vr7wEs2.png)
+
+3. Relative Positional Encodings
+
+	segment-level의 recurrence 메커니즘을 적용하면 한 가지 문제 발생
+
+		-> 포지션 정보를 어떻게 추가할 것인가???
+
+			-> segment들 사이에서의 상대적인 위치 정보가 필요
+
+	- 상대적인 포지션 인코딩(Relative Positional Encodings) 방법 제안
+		- 상대적인 정보를 임베딩 레이어가 아닌 attention 연산 시에 주입
+	
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/25_0HjxcB3.png)
+
+	- R은 상대적인 포지션 정보를 encoding한 매트릭스
+		- R의 i번째 행은 i와 다른 단어들 간의 상대적인 포지션을 알려줌
+		- i와 j의 상대적인 거리 이용
+		- sinusoid encoding matrix 사용
+
+	- 학습 가능한 파라미터 u, v 추가
+		- 절대적인 포지션이 아닌 상대적인 포지션 정보를 이용하게 되면서 query는 그 위치에 상관없이 똑같은 query vector를 사용하게 됨
+		- 포지션에 상관없이 같은 값인 벡터 u와 v로 대신하게 되었음
+
+	- Wk,E와 Wk,R
+		- content-based key vectors와 location-based key vectors를 독립적으로 만들기 위해 분리
+
+transformer-XL의 특징
+
+	auxiliary losses 없이도 뛰어난 성능을 낼 수 있음
+
+transformer-XL 논문
+
+[Transformer-XL: Attentive Language Models](https://arxiv.org/pdf/1901.02860)
+
+---
+
+## XLNet, BART
+
+---
+
+XLNet?
+
+	transformer-XL을 이용한 아키텍처!
+
+		-> 트랜스포머보다 더 넓은 범위의 문맥을 볼 수 있다는 것을 강조하게 위해서 XLNet이라는 이름이 붙었다고 함
+
+XLNet 논문
+
+[XLNet: Generalized Autoregressive Pretraining for Language Understanding](https://arxiv.org/abs/1906.08237)
+
+임베딩 모델의 최근 흐름
+
+	- AR 모델
+		- 이전 문맥을 바탕으로 다음 단어를 예측
+		- 문맥을 양방향으로 볼 수 없음
+
+	- AE 모델
+		- 앞뒤 문맥을 모두 살펴 [MASK] 단어를 예측
+		- 토큰 사이의 의존 관계를 학습할 수 없음
+		- fine-tuning과 evaluation 시 [MASK] 토큰이 보이지 않아 불일치 발생
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-18_16-58-49.max-800x600.png)
+
+퍼뮤테이션(Permutation) 모델
+
+	 AR과 AE의 장점만을 취함
+
+		-> AE처럼 양방향 context를 모두 볼 수 있는 동시에, AR처럼 예측해야 할 토큰들 간의 dependency를 놓치지 않고 학습할 수 있음
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-18_17-08-52_HUihMF8.max-800x600.png)
+
+permutation 언어 모델의 한계점
+
+	셔플된 토큰 시퀀스가 [3, 2, 4, 1]과 [3, 2, 1, 4]일 경우 모델은 동일한 입력을 받아 다른 단어를 예측해야 함
+
+Two-Stream Self-Attention?
+
+	위와 같은 문제를 해결하기 위해 제안
+
+	- 쿼리 스트림(query stream)과 컨텐트 스트림(content stream)을 혼합한 것
+		- 쿼리 스트림은 T 시점 이전의 토큰 정보와 T 시점의 위치 정보를 나타냄
+		- 컨텐트 스트림은 기존의 self-attention과 같이 T 시점과 T 시점 이전의 토큰 정보를 사용
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-18_17-39-17.max-800x600.png)
+
+	(a) -> 콘텐트 스트림
+
+	(b) -> 쿼리 스트림
+
+	(c) -> 두 개의 스트림 어텐션을 사용한 permutation 언어 모델을 나타낸 것
+
+![image](./a.png)
+
+	-> 타겟 포지션 Zt 를 식에 추가함으로써 동일한 representation으로 다른 타깃을 맞출 수 있음
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-18_20-29-13.png)
+
+	T 시점과 T 시점 이후를 모두 고려하기 위해 2가지 hidden representation을 사용해야 함
+
+		-> 이 두 가지를 모두 사용할 수 있는 transformer 구조가 Two-Steam Self-Attention
+
+BART?
+
+	특정 task가 아닌 다양한 task에 적용할 수 있도록 seq2seq 구조로 만들어진 denoising auto-encoder
+
+		-> AR 모델과 AE 모델의 장점을 사용한 모델
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/original_images/seukeurinsyas_2021-11-18_20-45-32.png)
+
+	-> Encoder에서는 BERT와 같은 구조
+	   Decoder에서는 GPT와 같은 구조를 가지고 있음
+
+		-> 손상된 text를 입력받아 bidirectional 모델로 인코딩
+		   정답 text에 대한 likelihood를 Autoregressive decoder로 계산
+
+fine-tuning 진행시
+
+	- 손상되지 않은 문서가 encoder와 decoder 모두에 들어감
+	- decoder의 최종 hidden state로부터의 representations 사용
+
+BART는 noising이 자유롭다!
+
+	- Token Masking
+		- 임의의 토큰을 마스킹하고 복구하는 방식
+	- Token Deletion
+		- 임의의 토큰을 삭제하고 그 토큰의 위치를 찾는 방식
+	- Text Infilling
+		- 포아송 분포를 따르는 길이의 text span을 생성해 하나의 마스크 토큰으로 마스킹하고, 그 토큰에 몇 개의 토큰이 존재하는지 예측
+	- Sentence Permutaion: 문장의 순서를 랜덤으로 섞는 방식
+		- Document Rotation: 토큰 하나를 정해 그 토큰을 시작점으로 하여 회전시킨 후, 문서의 시작점을 찾도록 학습
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/seukeurinsyas_2021-11-18_20-49-41.max-800x600.png)
+
+BART 논문
+
+[BART: Denoising Sequence-to-Sequence Pre-training for NaturalLanguage Generation, Translation, and Comprehension](https://arxiv.org/abs/1910.13461)
+
+---
+
+## ALBERT(A Lite BERT for Self-supervised Learning of Language Representations)
+
+---
+
+ALBERT?
+
+	- '성능은 유지하면서 메모리는 적게 쓰는 좀 더 가벼운 BERT를 만들 수 없을까?'라는 질문에서부터 출발
+	- 기본 구조는 BERT를 따름
+		- 트랜스포머의 encoder를 기반, activation function(활성화 함수)으로는 GELU 사용
+
+더 가벼운 BERT를 만들기 위해 세 가지 아이디어 적용
+
+1. Factorized embedding parameterization
+
+	-  input의 token embedding(E)과 hidden layer(H)
+		- ALBERT는 E를 H보다 작게 만들어서 parameter의 수를 줄임
+		- token embedding은 context와 무관한, 그저 token을 벡터화한 것에 불과
+		- 오히려 H의 사이즈가 클수록 성능이 높아질 가능성이 있음
+		- E의 사이즈를 줄여도 성능과는 크게 연관이 없어 보임
+	
+	- 무작정 E나 H의 사이즈를 변경할 수는 없음
+		- BERT에서는 E와 H를 같도록(tying) 모델을 설계했기 때문
+		- 임베딩 벡터는 V * H(혹은 E)의 매트릭스
+		- 성능을 위해서라면 V도 너무 작아서는 안됨
+
+	- 어떻게 효과적으로 적당한 V를 유지하면서, H는 키우고 E는 줄일 수 있을까?
+		- matrix factorization(행렬 분해)!!
+		- V * H의 매트릭스를 V * E와 E * H의 매트릭스로 나누는 것
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/26_tMdvsFG.max-800x600.png)
+
+	-> H의 사이즈는 유지한 채 E의 사이즈를 줄일 수 있음
+
+2. Cross-layer parameter sharing
+
+	- parameter를 공유하는 방법
+		- layer간의 모든 parameter들을 공유
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/27_2QMR6MC.max-800x600.png)
+
+	- 어떤 layer를 어디까지 공유하는 걸까??
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/28.max-800x600.png)
+
+	-> 더 많은 부분을 공유할수록 모델의 parameter의 수는 줄어들지만(경량화) 성능은 저하
+
+		-> 그럼에도 기본적으로 모든 parameter들을 공유하고 있음
+
+3. Inter-sentence coherence loss
+
+	Next Sentence Prediction(NSP)
+
+		-> 두 문장의 연관 관계 보다 두 문장의 topic 차이를 구별하는 것에 가까울 수 있다는 것
+
+	NSP를 과감하게 삭제하고 이를 Sentence Order Prediction(SOP)로 대체!!
+
+	SOP?
+
+		-> 임의로 문장을 샘플링하는 것이 아니라, 실제 두 문장의 순서를 바꾸어 학습 데이터를 만듬
+
+			-> 두 문장의 순서가 원래의 데이터의 순서와 일치한다면 positive, 순서가 원래 데이터와 반대로 되어있다면 negative이 되는 것
+
+	-> 모델은 기존의 NSP보다 훨씬 더 복잡한 언어적 사이의 연관성을 이해할 수 있데 되는 것
+
+![image](https://d3s0tskafalll9.cloudfront.net/media/images/29.max-800x600.png)
+
+---
+
+## T5(Text-to-Text Transfer Transformer)
+
+---
+
+
