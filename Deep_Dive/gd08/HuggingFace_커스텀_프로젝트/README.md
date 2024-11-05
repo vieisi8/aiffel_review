@@ -72,7 +72,7 @@ GLUE MRPC 데이터셋 load
 
 2. 커스텀 데이터셋 생성
 
-	tensorflow_datasets에서 load
+tensorflow_datasets에서 load
 
 	'''
 
@@ -83,7 +83,7 @@ GLUE MRPC 데이터셋 load
 
 	'''
 
-	이중 딕셔너리 내부에 데이터를 리스트 형태로 변환
+이중 딕셔너리 내부에 데이터를 리스트 형태로 변환
 
 	'''
 
