@@ -81,3 +81,4 @@ Repository 구조
 
 
 __2 ~ 3일 주기로 업로드 할 예정입니다__
+## git config
