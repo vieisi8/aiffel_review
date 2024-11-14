@@ -38,7 +38,7 @@
 
 	-> CV 모델의 학습 데이터
 
-[식품영양성분 데이터베이스](칼로리 췍(CalorieCheck))
+[식품영양성분 데이터베이스](https://various.foodsafetykorea.go.kr/nutrient/general/down/historyList.do)의 가공식품DB
 
 	-> RAG의 검색 데이터로 활용
 
