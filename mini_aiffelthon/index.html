@@ -1,0 +1,213 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>칼로리 췍(CalorieCheck)</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: block;
+        }
+        #imagePreview {
+            width: 280px;
+            height: 280px;
+            margin: auto;
+            image-rendering: pixelated;
+            border: 1px solid #ccc;
+            background-color: black;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">칼로리 췍(CalorieCheck)</h1>
+            
+            <div class="mb-6">
+                <div class="flex flex-col items-center">
+                    <!-- 파일 업로드 버튼 -->
+                    <div class="mt-4">
+                        <label style="color: #6FBB68;" class="w-64 flex flex-col items-center px-4 py-6 bg-white text-blue-500 rounded-lg shadow-lg tracking-wide uppercase border border-blue cursor-pointer hover:bg-green-100 hover:text-white">
+                            <svg class="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
+                            </svg>
+                            <span class="mt-2 text-base leading-normal">이미지 업로드</span>
+                            <input type="file" class="hidden" id="imageInput" accept="image/*" onchange="handleImageUpload(event)" />
+                        </label>
+                    </div>
+                
+                    <!-- 이미지 미리보기 컨테이너 -->
+                    <div id="previewContainer" class="mt-4 hidden">
+                        <img id="imagePreview" src="#" alt="이미지 미리보기" class="rounded-lg shadow-md w-64 h-auto">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center">
+                <button onclick="predict()" 
+                        class="bg-green-400 hover:bg-green-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    상품 체크
+                </button>
+            </div>
+
+            <div id="loading" class="loading text-center my-4">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <p class="mt-2 text-gray-600">확인중...</p>
+            </div>
+
+            <!-- 결과 표시 영역 -->
+            <div id="result" class="hidden">
+                <p>음료명:  <strong><span id="drink_name"></span></strong></span></p>
+                <br>
+                <p>음료 리뷰:  <strong><span id="drink_review"></span></strong></span></p>
+                <br>
+                <!-- 결과 표시 테이블 -->
+                <table id="resultTable" style="width: 50%; margin: 0 auto; display: none;">
+                    <caption>음료 영양성분</caption>
+                    <thead>
+                        <tr>
+                            <th>항목</th>
+                            <th>값</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div id="error" class="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden">
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 마우스 이벤트 리스너
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // 터치 이벤트 리스너
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // 이미지 업로드 및 미리보기 처리
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadedFile = file; // 업로드된 파일 저장
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById("imagePreview").src = e.target.result;
+                    document.getElementById("previewContainer").classList.remove("hidden");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            let touch = e.touches[0];
+            let mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+
+        // 서버로 이미지 전송
+        async function sendImageToServer() {
+            if (!uploadedFile) {
+                alert("이미지를 먼저 업로드하세요.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', uploadedFile, uploadedFile.name);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`서버 에러: ${response.statusText}`);
+                }
+
+                const result = await response.json(); // 서버 응답 처리
+                console.log("서버 응답:", result);
+                alert("이미지 전송 성공!");
+            } catch (error) {
+                console.error("이미지 전송 중 오류 발생:", error);
+                alert("이미지 전송 실패!");
+            }
+        }
+
+        async function predict() {
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+            
+            loading.classList.add('active');
+            result.classList.add('hidden');
+            error.classList.add('hidden');
+            tableBody.innerHTML = ""; // 테이블 초기화
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedFile, uploadedFile.name);
+                
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('drink_name').textContent = data.name;
+                    document.getElementById('drink_review').textContent = data.review;
+                    // Nutritional Properties 테이블 추가
+                    let nutritionalProperties = data["nutritional_properties"];
+
+                    // "예외" 항목이 있을 경우 이를 처리
+                    if (nutritionalProperties["예외"]) {
+                        errorMessage.textContent = nutritionalProperties["예외"];
+                        error.classList.remove('hidden');
+                    }
+                    else
+                        // 테이블에 데이터 추가
+                        for (const [key, value] of Object.entries(nutritionalProperties)) {
+                            if (key !== "예외") {
+                                const row = document.createElement('tr');
+                                const displayValue = value !== null ? value : "정보 없음"; // None 값 처리
+                                row.innerHTML = `<td>${key}</td><td>${displayValue}</td>`;
+                                tableBody.appendChild(row);
+                            }
+                        }
+
+                    resultTable.style.display = 'table';
+
+                    result.classList.remove('hidden');
+                } else {
+                    document.getElementById('errorMessage').textContent = data.detail;
+                    error.classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = 
+                    '예측 중 오류가 발생했습니다. 다시 시도해주세요.';
+                error.classList.remove('hidden');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>
