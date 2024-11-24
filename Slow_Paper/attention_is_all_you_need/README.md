@@ -111,3 +111,135 @@
 3.2.3 Applications of Attention in our Model
 
   세가지 방식의 multi-head attention 사용
+
+  1. 인코더 - 디코더 attention
+     - 쿼리
+       - 디코더 계층
+     - 키, 값
+       - 인코더의 출력
+     - 디코더의 모든 위치가 입력 시퀀스의 모든 위치에 attention 할 수 있음
+  2. 인코더 self-attention
+     -  모든 키, 값, 쿼이가 같은 위치에서 나옴
+       - 인코더의 이전 계층의 출력 사용
+     - 인코더의 이전 레이어에 있는 모든 위치를 확인 가능
+  3. 디코더 self-attention
+     - 각 위치가 해당 위치를 포함한 디코더의 모든 위치에 attenation 할 수 있음
+     - 자동 회귀 속성을 유지하기 위해 디코더에거 왼쪽으로 정보가 흐르는 것을 방지해야 함
+       - 해당하는 부분을 마스킹(−∞)으로 지정해 softmax 입력값으로 줌
+       - scaled dot-product attention 내부에서 구현함
+
+3.3 Position-wise Feed-Forward Networks
+
+  - 인코더와 디코더의 각 레이어에는 attenation 하위 layer 외에도  fully connected feed-forward network가 포함되어 있음
+  - 각 위치에 개별적으로 동일하게 적용됨
+  - 두 개의 선형 변환과 ReLU 활성화로 구성
+
+![image](https://github.com/user-attachments/assets/7862776b-3491-4167-9a1b-0e9d4cf31638)
+
+  - 선형 변환
+    - 여러 위치에서 동일하지만 레이어마다 다른 매개 변수를 사용
+  - 입력과 출력의 차원
+    - dmodel=512
+  - 내부 layer의 차원
+    - dff=2048
+
+3.4 Embeddings and Softmax
+
+  - 학습된 임베딩을 사용해 입력 토큰, 출력 토큰을 차원 dmodel의 벡터로 변환
+  - 일반적인 학습된 선형 변환과 softmax 함수를 사용해 디코더 출력을 예측된 다음 토큰 확률로 변환
+  - embedding layer와 학습된 softmax 선형 변환 간에 동일한 가중치 매트릭스를 공유
+    - embedding layer에서는 이 가중치에 √dmodel을 곱함
+
+3.5 Positional Encoding
+
+  - recurrence와 convolution이 없기 때문에 시퀀스의 순서 활용 X
+    - 시퀀스에서 토큰의 상대적 또는 절대적 위치에 대한 정보 주입
+  - 인코더, 디코더 스택의 하단에 있는 입력 embedding에 위치 인코딩을 추가
+  - embedding과 동일한 차원 dmodel를 가지므로 둘은 합산 가능
+  - 위치 인코딩에는 학습 및 고정된 다양한 선택지 있음
+    - 이 작업에서는 서로 다른 주파수의 사인, 코사인 함수 사용
+
+![image](https://github.com/user-attachments/assets/dee45cd2-81af-46b2-a47c-459f7fdf1319)
+
+  - pos, i
+    - 각 위치, 차원을 나타냄
+  - 위치 인코딩의 각 차원은 sinusoid에 해당함
+  - 파장
+    -  2π ~ 20000π까지의 기하학적 진행을 형성
+  - 위 함수를 선택한 이유
+    - 고정된 offset k에 대해 선형 함수로 표현할 수 있기 때문
+    - 모델이 상대적인 위치로 참석하는 것을 쉽게 학습할 수 있을 것이라고 가정했음
+    - 학습된 위치 임베딩과 거의 동일한 결과를 도출함
+      - 하지만 모델이 훈련 중에 발생하는 것보다 더 긴 시퀀스 길이로 추청할 수 있음
+     
+4. Why Self-Attention
+
+  - self-attention사용에 동기를 부여하기 위해 세 가지 필수 조건을 고려함
+    1. layer당 총 계산 복잡도
+    2. 병렬화할 수 있는 계산량
+       - 필요한 최소 순차 연산 횟수로 측정
+    3. 네트워크에서 장거리 종속성 사이의 경로 길이
+       - 장거리 종속성을 학습하는 것은 많은 시퀀스 변환 작업에서 핵심 과제
+       - 장거리 종속성 경로의 길이가 짧은수록 장거리 종속성을 학습하기가 더 쉬워짐
+       - ∴ 두 입력과 출력 위치 사이의 최대 경로 길이 비교
+      
+![image](https://github.com/user-attachments/assets/b991304e-e901-47b6-8e01-9f074151843e)
+
+  - 표에서 self-attention만 확인 해보겠음
+    - Complexity per Layer
+      - scaled dot-product attention 내부에서 QKT 행렬곱으로 인해 n^2
+      - scaled dot-product attention 내부에서 값을 곱하기에 d
+      - ∴ O(n^2*d)
+    - Sequential Operations
+      - 병렬화 가능하므로 O(1)
+    - Maximum Path Length
+      - self-attention으로 인해 시퀀스를 한번에 참조할 수 있으므로 O(1)
+  - 부수적인 이점
+    - self-attention으로 인해 더 해석하기 쉬운 모델을 만들 수 있음
+   
+5. Training
+
+5.1 Training Data and Batching
+
+  - WMT 2014 영어-독일어 데이터셋, WMT 2014 영어-프랑스어 데이터셋 사용
+  - 각 훈련 배치
+    - 소스 토큰
+      - 25,000 토큰
+    - 목표 토큰
+      - 25,000 토큰
+
+5.2 Hardware and Schedule
+
+  - 8개의 NVIDIA P100 GPU가 장착된 컴퓨터 한대로 훈련
+  - 기본 모델
+    - 각 step
+      - 0.4초 소요
+    - 훈련시간(총 step)
+      - 12시간(10만 step)
+  - Big 모델
+    - 각 step
+      - 1.0초 소요
+    - 훈련시간(총 step)
+      - 3.5일(30만 step)
+
+5.3 Optimizer
+
+  -  β1 = 0.9, β2 = 0.98, ϵ = 10−9으로 Adam 옵티마이저 사용
+    - 학습 속도를 공식에 따라 다양하게 변경
+
+![image](https://github.com/user-attachments/assets/c43c75b1-9a3c-4712-9320-586a88bd9c1b)
+
+  - warmup_steps 훈련 단계에 대해 학습 속도를 선형적으로 증가
+    - warmup_steps=4000
+  - 그 이후에는 단계 수의 역제곱근에 비례하여 감소
+
+5.4 Regularization
+
+  - 세가지 유형의 정규화 사용
+    - Residual Dropout
+      - 각 하위 계층의 출력에 드롭아웃 적용
+      - 인코더와 디코더 스택 모두에서 임베딩과 위치 인코딩의 합에 드롭아웃 적용
+      - Pdrop = 0.1
+    - Label Smoothing
+      - ϵls = 0.1값의 Label Smoothing 사용
+      - 모델이 혼란스러워지지만 정확도와 BLUE 점수 향상상
