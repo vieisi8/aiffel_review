@@ -10,7 +10,9 @@
 
 ---
 
-1. Introduction
+### 1. Introduction
+
+---
 
 - RNN의 문제점
 
@@ -27,13 +29,21 @@
   - 반복을 피하고 Attention 메커니즘에 전적으로 의존하여 입출력간의 글로벌 종속성을 도출하는 아키텍처 제안
   - 훨씬 더 많은 병렬화 가능
 
-3. Model Architecture
+---
+
+### 3. Model Architecture
+
+---
 
 ![image](https://github.com/user-attachments/assets/1d249935-0db1-43c0-a3ec-3952dc671dbf)
 
     -> Transformer는 인코더와 디코더 모두에 대해 스택형  self-attention, point-wise, fully connected layers 사용
 
-3.1 Encoder and Decoder Stacks
+---
+
+#### 3.1 Encoder and Decoder Stacks
+
+---
 
   1.인코더
 
@@ -55,7 +65,11 @@
     - 출력 embedding이 한 위치만큼 offset된다는 사실과 결합
     - 위치 i에 대한 예측이 i보다 작은 위치의 알려진 출력에만 의존할 수 있도록 함
    
-3.2 attention
+---
+
+#### 3.2 attention
+
+---
 
   attention function
 
@@ -66,7 +80,11 @@
     - 각 값에 할당된 가중치
       - 해당 키와 쿼리의 compatibility function에 의해 계산
 
-3.2.1  Scaled Dot-Product Attention
+---
+
+##### 3.2.1  Scaled Dot-Product Attention
+
+---
 
   - 입력
     - 쿼리, 키의 차원
@@ -90,7 +108,11 @@
       - dot products값의 크기가 커져 softmax 함수가 매우 작은 기울기를 갖게 되기 때문
       - 위와 같은 문제를 해결하기 위해 √dk으로 스케일링 함
 
-3.2.2 Multi-Head Attention
+---
+
+##### 3.2.2 Multi-Head Attention
+
+---
 
   - dmodel - dk
     - 단일 attention function보단 학습된 다양한 선형 투영을 통해 쿼리, 키, 값을 각각 dk, dk, dv차원으로 선형 투영하는 것이 유리하다는 것을 알게 됨
@@ -108,7 +130,11 @@
     - dk = dv = dmodel/h = 64
     - 각 헤드의 크기가 줄었들었기 때문에 계산 비용은 단일 attention과 비슷함
 
-3.2.3 Applications of Attention in our Model
+---
+
+##### 3.2.3 Applications of Attention in our Model
+
+---
 
   세가지 방식의 multi-head attention 사용
 
@@ -128,7 +154,11 @@
        - 해당하는 부분을 마스킹(−∞)으로 지정해 softmax 입력값으로 줌
        - scaled dot-product attention 내부에서 구현함
 
-3.3 Position-wise Feed-Forward Networks
+---
+
+#### 3.3 Position-wise Feed-Forward Networks
+
+---
 
   - 인코더와 디코더의 각 레이어에는 attenation 하위 layer 외에도  fully connected feed-forward network가 포함되어 있음
   - 각 위치에 개별적으로 동일하게 적용됨
@@ -143,14 +173,22 @@
   - 내부 layer의 차원
     - dff=2048
 
-3.4 Embeddings and Softmax
+---
+
+#### 3.4 Embeddings and Softmax
+
+---
 
   - 학습된 임베딩을 사용해 입력 토큰, 출력 토큰을 차원 dmodel의 벡터로 변환
   - 일반적인 학습된 선형 변환과 softmax 함수를 사용해 디코더 출력을 예측된 다음 토큰 확률로 변환
   - embedding layer와 학습된 softmax 선형 변환 간에 동일한 가중치 매트릭스를 공유
     - embedding layer에서는 이 가중치에 √dmodel을 곱함
 
-3.5 Positional Encoding
+---
+
+#### 3.5 Positional Encoding
+
+---
 
   - recurrence와 convolution이 없기 때문에 시퀀스의 순서 활용 X
     - 시퀀스에서 토큰의 상대적 또는 절대적 위치에 대한 정보 주입
@@ -172,7 +210,11 @@
     - 학습된 위치 임베딩과 거의 동일한 결과를 도출함
       - 하지만 모델이 훈련 중에 발생하는 것보다 더 긴 시퀀스 길이로 추청할 수 있음
      
-4. Why Self-Attention
+---
+
+### 4. Why Self-Attention
+
+---
 
   - self-attention사용에 동기를 부여하기 위해 세 가지 필수 조건을 고려함
     1. layer당 총 계산 복잡도
@@ -197,9 +239,17 @@
   - 부수적인 이점
     - self-attention으로 인해 더 해석하기 쉬운 모델을 만들 수 있음
    
-5. Training
+---
 
-5.1 Training Data and Batching
+### 5. Training
+
+---
+
+---
+
+#### 5.1 Training Data and Batching
+
+---
 
   - WMT 2014 영어-독일어 데이터셋, WMT 2014 영어-프랑스어 데이터셋 사용
   - 각 훈련 배치
@@ -208,7 +258,11 @@
     - 목표 토큰
       - 25,000 토큰
 
-5.2 Hardware and Schedule
+---
+
+#### 5.2 Hardware and Schedule
+
+---
 
   - 8개의 NVIDIA P100 GPU가 장착된 컴퓨터 한대로 훈련
   - 기본 모델
@@ -222,7 +276,11 @@
     - 훈련시간(총 step)
       - 3.5일(30만 step)
 
-5.3 Optimizer
+---
+
+#### 5.3 Optimizer
+
+---
 
   -  β1 = 0.9, β2 = 0.98, ϵ = 10−9으로 Adam 옵티마이저 사용
     - 학습 속도를 공식에 따라 다양하게 변경
@@ -233,7 +291,11 @@
     - warmup_steps=4000
   - 그 이후에는 단계 수의 역제곱근에 비례하여 감소
 
-5.4 Regularization
+---
+
+#### 5.4 Regularization
+
+---
 
   - 세가지 유형의 정규화 사용
     - Residual Dropout
