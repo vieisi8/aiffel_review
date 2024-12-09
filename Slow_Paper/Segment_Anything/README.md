@@ -18,6 +18,14 @@
 
 ---
 
+### 1. Introduction
+
+---
+
+
+
+---
+
 ### 2. Segment Anything Task
 
 ---
@@ -39,25 +47,3 @@
 ---
 
 
-
----
-
-### 5. Segment Anything Dataset
-
----
-
-
-
----
-
-### 6. Segment Anything RAI Analysis
-
----
-
-
-
----
-
-### 7. Zero-Shot Transfer Experiments
-
----
