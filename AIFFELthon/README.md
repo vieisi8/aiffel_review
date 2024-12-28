@@ -22,3 +22,7 @@
     - 맡은 Tool 구현
       - IUPAC 이름 패턴을 통해 추출
     - 기업과 진행 상황 공유를 위한 미팅
+ - 2024.12.28
+   - 맡은 Tool 구현
+     - PDF -> 텍스트
+       - Google cloud vision 과 pdfplumber 성능 차이 줄여보기
