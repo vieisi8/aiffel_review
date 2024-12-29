@@ -26,3 +26,6 @@
    - 맡은 Tool 구현
      - PDF -> 텍스트
        - Google cloud vision 과 pdfplumber 성능 차이 줄여보기
+ - 2024.12.29
+   - 맡은 Tool 구현
+     - 28일과 동일한 실험 진행
