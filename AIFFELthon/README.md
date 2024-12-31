@@ -35,3 +35,9 @@
        - Open Ai API를 사용하면 손쉽게 가능하나 지속적인 비용이 발생하기 때문
        - Ollama를 활용해 Local LLM 구현해볼 예정
        - 컴퓨팅 파워가 제한적이므로 상대적으로 작은 모델로 진행해볼 예정
+ - 2024.12.31
+   - 맡은 Tool 구현
+     - 모델 탐색(Qwen2.5, EXANONE, ChemLLM)을 진행
+       - 본문에서 IUPAC 추출 불가
+       - 추출된 IUPAC 수정 불가
+     - OPEN AI API를 사용해야 될 것 같음
