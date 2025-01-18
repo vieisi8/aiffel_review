@@ -102,3 +102,7 @@
      - Tool 추가 및 프롬프트 변경
        - 기존: ChemCrow 외부에서 변경(기존 값에 새로운 값 대체)
        - 변경 사항: ChemCrow 내부에서 변경(기존 파일에서 코드 수정)
+ - 2025.1.18
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow git Clone
+     - ChemCrow 내부 파일을 사용 가능 하도록 라이브러리 버전 조정
