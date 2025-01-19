@@ -106,3 +106,9 @@
    - ChemCrow 내부에서 코드 수정
      - ChemCrow git Clone
      - ChemCrow 내부 파일을 사용 가능 하도록 라이브러리 버전 조정
+ - 2025.1.19
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow 내부 파일 수정
+       - langchain과 관련 파일 버전에 맞게 수정
+       - Tools 가져오는 파일 코드 수정
+       - Tools init 파일 수정 및 IUPAC2SMILES 파일 생성
