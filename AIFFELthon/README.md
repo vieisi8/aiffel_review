@@ -112,3 +112,13 @@
        - langchain과 관련 파일 버전에 맞게 수정
        - Tools 가져오는 파일 코드 수정
        - Tools init 파일 수정 및 IUPAC2SMILES 파일 생성
+ - 2025.1.20
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow 내부 파일 수정
+       - 프롬프트 지정하는 파일 수정
+     - rmrkl 라이브러리 코드 수정
+       - pydantic 1.x 버전 기준으로 코드 작성 되어 있어 pydantic 2.x 버전 코드로 수정
+     - 테스트 결과
+       - Tool과 프롬프트 정상적으로 변경됨
+   - 테이블 내용 추출(다른 Tool 백업)
+     - Openai외 다른 table ocr를 통한 내용 추출 테스트
