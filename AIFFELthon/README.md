@@ -122,3 +122,6 @@
        - Tool과 프롬프트 정상적으로 변경됨
    - 테이블 내용 추출(다른 Tool 백업)
      - Openai외 다른 table ocr를 통한 내용 추출 테스트
+ - 2025.1.21
+   - ChemCrow 내부에서 코드 수정
+     - requirements.txt를 생성해 필요한 라이브러리 설치
