@@ -131,3 +131,7 @@
      - requirements.txt 수정
      - git에 chemcrow-YJS 추가(test 용)
        - git clone 후 chemcrow-YJS 테스트 
+ - 2025.1.23
+   - chemcrow-YJS
+     - 테스트 완료
+     - 개발 완료된 나머지 Tool 추가 작업 진행 예정
