@@ -66,4 +66,83 @@
      - 추출된 IUPAC을 원래 형태의 IUPAC으로 수정하는 메서드 구축후 실험
    - 다른 Tool 백업
      - gmft 라이브러리를 사용해 테이블 추출 실험
- - 2025.1.석
+ - 2025.1.7
+   - 맡은 Tool 구현 완료
+   - ChemCrow 사용법 및 코드 살펴보기
+ - 2025.1.8
+   - 제작한 Tool 추가 방법 탐색
+ - 2025.1.9
+   - 제작한 Tool 수정
+     - Agent에 사용하기 위해 Input과 Output이 어떤 것들이어야 하는지 탐색
+ - 2025.1.10
+   - 기업 미팅
+     - 나머지 Tool 개발 차주 수요일까지 완료 바람
+     - ChemCrow 프롬프트 엔지니어링 하는 방법 탐색
+     - 완성된 Tool ChemCrow에 맞게 수정
+ - 2025.1.11
+   - ChemCrow 프롬프트 엔지니어링 하는 방법 탐색
+ - 2025.1.12
+   - ChemCrow 프롬프트 엔지니어링 하는 방법 탐색
+ - 2025.1.13
+   - ChemCrow 프롬프트 엔지니어링
+     - 프롬프트 엔지니어링을 통해 LLM이 새로 추가한 Tool들을 인식할 수 있도록 하기
+ - 2025.1.14
+   - ChemCrow 프롬프트 엔지니어링
+     - 새로 추가한 Tool 테스트 진행
+ - 2025.1.15
+   - ChemCrow 프롬프트 엔지니어링
+     - 새로 추가한 Tool 테스트 완료
+   - 다른 Tool 수정
+     - Task에 맞게 수정
+ - 2025.1.16
+   - 다른 Tool 수정
+     - 수정 완료
+ - 2025.1.17
+   - 기업 미팅
+     - Tool 추가 및 프롬프트 변경
+       - 기존: ChemCrow 외부에서 변경(기존 값에 새로운 값 대체)
+       - 변경 사항: ChemCrow 내부에서 변경(기존 파일에서 코드 수정)
+ - 2025.1.18
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow git Clone
+     - ChemCrow 내부 파일을 사용 가능 하도록 라이브러리 버전 조정
+ - 2025.1.19
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow 내부 파일 수정
+       - langchain과 관련 파일 버전에 맞게 수정
+       - Tools 가져오는 파일 코드 수정
+       - Tools init 파일 수정 및 IUPAC2SMILES 파일 생성
+ - 2025.1.20
+   - ChemCrow 내부에서 코드 수정
+     - ChemCrow 내부 파일 수정
+       - 프롬프트 지정하는 파일 수정
+     - rmrkl 라이브러리 코드 수정
+       - pydantic 1.x 버전 기준으로 코드 작성 되어 있어 pydantic 2.x 버전 코드로 수정
+     - 테스트 결과
+       - Tool과 프롬프트 정상적으로 변경됨
+   - 테이블 내용 추출(다른 Tool 백업)
+     - Openai외 다른 table ocr를 통한 내용 추출 테스트
+ - 2025.1.21
+   - ChemCrow 내부에서 코드 수정
+     - requirements.txt를 생성해 필요한 라이브러리 설치
+ - 2025.1.22
+   - chemcrow-YJS
+     - 수정해야 할 rmrkl, paperqa 라이브러리 ChemCrow 내부로 복사 후 수정
+     - requirements.txt 수정
+     - git에 chemcrow-YJS 추가(test 용)
+       - git clone 후 chemcrow-YJS 테스트 
+ - 2025.1.23
+   - chemcrow-YJS
+     - 테스트 완료
+     - 개발 완료된 나머지 Tool 추가 작업 진행 예정
+ - 2025.1.24
+   - 기업 미팅
+     - 프롬프트 변경
+       - 기존 프롬프트를 수정하는 방안 X
+       - 기존 틀을 유지하되 우리 Task에 맞게 새로 설계하는 방안
+     - streamlit으로 웹 서비스 구현
+       - streamlit으로 웹 형태의 chatbot 구현
+       - 기존 chemcrow에 존재하는 app.py 파일을 우리 Task에 맞게 수정
+   - chemcrow-YJS
+     - streamlit으로 웹 서비스 구현
+       - 기존 chemcrow의 app.py 코드 분석석
