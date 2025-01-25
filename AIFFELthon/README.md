@@ -149,3 +149,6 @@
  - 2025.1.25
    - streamlit으로 웹 서비스 구현
      - 기존의 app.py으로 chemcrow-YJS 테스트
+ - 2025.1.26
+   - streamlit으로 웹 서비스 구현
+     - Task에 맞게 app.py 수정
