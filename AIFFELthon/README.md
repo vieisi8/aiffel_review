@@ -146,3 +146,6 @@
    - chemcrow-YJS
      - streamlit으로 웹 서비스 구현
        - 기존 chemcrow의 app.py 코드 분석석
+ - 2025.1.25
+   - streamlit으로 웹 서비스 구현
+     - 기존의 app.py으로 chemcrow-YJS 테스트
