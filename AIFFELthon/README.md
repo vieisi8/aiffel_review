@@ -152,3 +152,7 @@
  - 2025.1.26
    - streamlit으로 웹 서비스 구현
      - Task에 맞게 app.py 수정
+ - 2025.1.27
+   - streamlit으로 웹 서비스 구현
+     - app.py 수정 완료
+     - Tool. IUPAC->SMILES 웹 상에서의 테스트
