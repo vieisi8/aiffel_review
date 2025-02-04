@@ -156,3 +156,12 @@
    - streamlit으로 웹 서비스 구현
      - app.py 수정 완료
      - Tool. IUPAC->SMILES 웹 상에서의 테스트
+ - 2025.1.31
+   - app.py 수정
+     - OPENAI API KEY 변경 부분 수정
+ - 2025.2.3
+   - 프로젝트 공용 gitpub에 chemcrow-YJS upload
+   - IUPAC2SMILES Tool 정량적 평가 수행
+ - 2025.2.4
+   - table ocr Tool과 IUPAC2SMILES Tool Agent에 구현
+   - 각 Tool의 input과 output 조정
