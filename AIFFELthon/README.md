@@ -165,3 +165,7 @@
  - 2025.2.4
    - table ocr Tool과 IUPAC2SMILES Tool Agent에 구현
    - 각 Tool의 input과 output 조정
+ - 2025.2.5
+   - chemcrow-YJS 테스트 진행
+     - 결과 값은 나오긴 하나 원하는 결과 값은 아님
+   - 시스템 프롬프트 조정중
